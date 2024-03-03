@@ -1,16 +1,37 @@
+--[[
+
+source-destination edit: 3 point assembly v 0.8
+
+This file is part of the soapy-seahorse package.
+
+(C) 2024 the soapy zoo
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+]]
+
 -------------------
 -- user settings --
 -------------------
 
 -- true = yes, false = no
 
-local xfadeLen = 0.05 -- default: 50 milliseconds (0.05)
+local xfadeLen = 0.05                           -- default: 50 milliseconds (0.05)
+
+local bool_AutoCrossfade = true                 -- fade newly edited items
 
 local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
 
 local bool_removeAllSourceGates = false         -- remove all source gates after the edit
 
-local bool_experimentalAutoCrossfade = true    -- works, but is slower and makes the screen flicker.
 
 ---------------
 -- variables --
@@ -40,76 +61,71 @@ local cursorPos_end
 
 function main()
 
-  r.Undo_BeginBlock()
+    r.Undo_BeginBlock()
 
-  if not bool_experimentalAutoCrossfade then
     r.PreventUIRefresh( 1 )
-  end
 
-  ---######### START ##########---
+    ---######### START ##########---
 
-  r.Main_OnCommand(41119, 0) -- disable autocrossfade (less weird when pasting items)
-  cursorPos_origin = r.GetCursorPosition()
+    r.Main_OnCommand(41119, 0) -- disable autocrossfade (less weird when pasting items)
+    cursorPos_origin = r.GetCursorPosition()
   
-  gateIsSet = GetSourceGateIn()
+    gateIsSet = GetSourceGateIn()
 
     if gateIsSet then
 
-          gateIsSet = GetSourceGateOut()
+        gateIsSet = GetSourceGateOut()
 
-          if gateIsSet then
-              
-            SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
-             
-            r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
+        if gateIsSet then
+          
+        SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+         
+        r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
-            r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+
+        PasteToTopLane()           -- paste source material
+
+        cursorPos_end = r.GetCursorPosition()
+
+        -- go to start of pasted item
+        r.GoToMarker(0, destinationIdxIn, false)
+
+
+        if bool_AutoCrossfade then
+            SetCrossfade(xfadeLen)
+        end
+          
+        RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
+
+        if not bool_AutoCrossfade then
             r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+        end
+          
+        if bool_moveDstGateAfterEdit then
+            r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
+            SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
+        end
+          
+        if bool_removeAllSourceGates then
+            RemoveAllSourceGates(0)
+        end
 
-            PasteToTopLane()           -- paste source material
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
-            cursorPos_end = r.GetCursorPosition()
+        else return end
 
-            -- go to start of pasted item
-            r.GoToMarker(0, destinationIdxIn, false)
-
-
-            if bool_experimentalAutoCrossfade then
-                SetCrossfade2(xfadeLen)
-            end
-              
-            if not bool_experimentalAutoCrossfade then
-                RemoveSourceGates()        -- delete take markers at destination in pasted material
-                r.Main_OnCommand(40020, 0) -- Time Selection: Remove
-            end
-              
-            if bool_moveDstGateAfterEdit then
-                r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-                SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
-            end
-              
-            if bool_removeAllSourceGates or bool_experimentalAutoCrossfade then
-                RemoveAllSourceGates()
-            end
-
-            r.Main_OnCommand(40289, 0) -- Deselect all items
-            r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
-
-          else return
-
-          end
-
-  else return
+    else return end
   
-  end
-  
-  r.Main_OnCommand(41118, 0) -- enable autocrossfade again
+    r.Main_OnCommand(41118, 0) -- enable autocrossfade again
 
-  ---######### END ##########---
-  
-  r.PreventUIRefresh(-1)
-  r.UpdateArrange()
-  r.Undo_EndBlock("ReaPyr 3 point assembly", -1)
+    ---######### END ##########---
+
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
+    r.Undo_EndBlock("ReaPyr 3 point assembly", -1)
 
 end
 
@@ -169,15 +185,16 @@ end
 
 function RemoveSourceGates()
 
-  local numSelectedItems = r.CountSelectedMediaItems(0)
+    local numSelectedItems = r.CountSelectedMediaItems(0)
   
-   -- Iterate through selected items
+    -- Iterate through selected items
     for i = 0, numSelectedItems - 1 do
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
         
         if mediaItem then
+
             -- Get the active take
             local activeTake = r.GetActiveTake(mediaItem)
         
@@ -209,12 +226,10 @@ function SetDstGateIn()       -- thanks chmaha <3
     r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, destinationIdxIn, markerColor | 0x1000000)
 end
 
-------------------------------------------
+-------------------------------------------------------------------
 
-function SetCrossfade2(xfadeLen)    -- thanks chmaha <3
-    
-    -- experimental, because the UI needs to be constantly updated
-    
+function SetCrossfade(xfadeLen)    -- thanks chmaha <3
+
     -- assumes that the cursor is at the center of the "fade in spe"
 
     local currentCursorPos = r.GetCursorPosition()
@@ -229,28 +244,42 @@ function SetCrossfade2(xfadeLen)    -- thanks chmaha <3
 
     r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
 
-    -- the following workaround is necessary because you cannot select individual lanes
-    -- I would have used: select items on selected tracks in time selection (40718)
-
-    r.Main_OnCommand(42790, 0) -- play only first lane
-    r.Main_OnCommand(43098, 0) -- show/play only one lane
-
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups 
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    -- make sure only items in the topmost lane are affected
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+        
+        local mediaItem = r.GetSelectedMediaItem(0, i)
+
+        if mediaItem then
+
+            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+            if itemLane >= 1 then
+                r.SetMediaItemSelected(mediaItem, 0)
+            end
+
+        end
+
+    end
+
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
 
     r.Main_OnCommand(40635, 0) -- Time selection: Remove time selection
-
-    r.Main_OnCommand(43099, 0) -- show/play all lanes
-
 
 end
 
 ------------------------------------------
 
-function RemoveAllSourceGates()
+function RemoveAllSourceGates(safeLane_rx)
 
-    r.Main_OnCommand(40182, 0) -- Select All
+    -- (-1): remove ONLY topmost lanes' src gates
+    local safeLane = safeLane_rx
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+    r.SelectAllMediaItems(0, 1)
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
   
@@ -261,22 +290,50 @@ function RemoveAllSourceGates()
         local mediaItem = r.GetSelectedMediaItem(0, i)
         
         if mediaItem then
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-        
-            if activeTake then
-                -- Remove existing MarkerLabel markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == sourceLabelIn then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                    if markerType == sourceLabelOut then
-                        r.DeleteTakeMarker(activeTake, i)
+
+            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+            if itemLane >= safeLane and safeLane ~= -1 then
+
+                -- Get the active take
+                local activeTake = r.GetActiveTake(mediaItem)
+            
+                if activeTake then
+                    -- Remove existing MarkerLabel markers
+                    local numMarkers = r.GetNumTakeMarkers(activeTake)
+                    for i = numMarkers, 0, -1 do
+                        local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+                        if markerType == sourceLabelIn then
+                            r.DeleteTakeMarker(activeTake, i)
+                        end
+                        if markerType == sourceLabelOut then
+                            r.DeleteTakeMarker(activeTake, i)
+                        end
                     end
                 end
-            end
+
+            elseif safeLane == -1 then
+
+                if itemLane == 0 then
+
+                    -- Get the active take
+                    local activeTake = r.GetActiveTake(mediaItem)
+                
+                    if activeTake then
+                        -- Remove existing MarkerLabel markers
+                        local numMarkers = r.GetNumTakeMarkers(activeTake)
+                        for i = numMarkers, 0, -1 do
+                            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+                            if markerType == sourceLabelIn then
+                                r.DeleteTakeMarker(activeTake, i)
+                            end
+                            if markerType == sourceLabelOut then
+                                r.DeleteTakeMarker(activeTake, i)
+                            end
+                        end
+                    end
+                end
+            end            
         end
     end
   
@@ -288,26 +345,6 @@ end
 --------------------------
 -- deprecated functions --
 --------------------------
-
-function SetCrossfade(xfadeLen)    -- thanks chmaha <3
-    
-    -- assumes that the cursor is at the center of the "fade in spe"
-    -- MoveEditCursor is not silent
-
-    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
-
-    r.MoveEditCursor(-xfadeLen/2, false) -- try using SetEditCurPos()
-    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
-    r.MoveEditCursor(xfadeLen, false)
-    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
-    r.Main_OnCommand(40718, 0)        -- select items on selected tracks in time selection
-    r.Main_OnCommand(40916, 0)        -- Item: Crossfade items within time selection
-
-    r.Main_OnCommand(40635, 0)        -- Time selection: Remove time selection
-
-    -- _XENAKIOS_SELFIRSTOFSELTRAX select first of selected tracks
-
-end
 
 -------------------------------------------------------------------
 
