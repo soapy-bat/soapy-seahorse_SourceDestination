@@ -1,3 +1,23 @@
+--[[
+
+source-destination markers / gates: set source out
+
+This file is part of the soapy-seahorse package.
+
+(C) 2024 the soapy zoo
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+]]
+
 ---------------
 -- variables --
 ---------------
@@ -40,9 +60,7 @@ function CreateSyncMarker()
     
             -- Add a take marker at the cursor position
             r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor|0x1000000)
-    
-            -- Update the arrangement
-            r.UpdateArrange()
+
         end
     end
   end
@@ -53,5 +71,8 @@ end
 ---------------------------
 
 r.Undo_BeginBlock()
+
 CreateSyncMarker()
+
+r.UpdateArrange()  
 r.Undo_EndBlock("Create Sync Out Marker", -1)
