@@ -1,2 +1,3 @@
 # soapy-seahorse_SourceDestination
 Warning: experimental functions!
+... how to will follow soon ...
