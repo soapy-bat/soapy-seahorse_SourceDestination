@@ -1,16 +1,42 @@
--- thanks chmaha, fricia, X-Raym, GPT3.5
+--[[
 
--- variables
+source-destination fades: functions
+
+This file is part of the soapy-seahorse package.
+It is required by the various audition scripts.
+
+(C) 2024 the soapy zoo
+copyleft: chmaha
+thanks: fricia, X-Raym, GPT3.5
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+]]
+
+---------------
+-- variables --
+---------------
+
 local r = reaper
 local so = {}
 
--------------------------------------------------------
+---------------
+-- functions --
+---------------
 
-function so.GetItemsNearMouse(fadeLenMultiplier_rx)
+function so.GetItemsNearMouse(cursorBias_rx)
 
-  local fadeLenMultiplier = fadeLenMultiplier_rx
-  local fadeLenMultStart = fadeLenMultiplier
-  local fadeLenMultEnd = fadeLenMultiplier - 1
+  local bool_success = false
+
+  local cursorBias = cursorBias_rx
 
   local mediaItem, itemStart, itemEnd
   local distanceToStart, distanceToEnd
@@ -19,8 +45,6 @@ function so.GetItemsNearMouse(fadeLenMultiplier_rx)
   for i = 1, 2 do
     itemGUID[i] = "empty"
   end
-
-  local bool_success = false
 
   local mouseX
 
@@ -38,48 +62,26 @@ function so.GetItemsNearMouse(fadeLenMultiplier_rx)
     distanceToEnd = math.abs(itemEnd - mouseX)
     
     if distanceToStart < distanceToEnd then
+      
       -- mouse over 2nd item
 
-      -- there are 2 types of fade in/out lengths
-      -- the script will only use the larger value of the two
-      local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
-      local fadeInLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
-
-      if fadeInLen <= fadeInLenAuto then
-        fadeInLen = fadeInLenAuto
-      end
-
-      local newCurPos = itemStart + (fadeInLen * fadeLenMultStart)
-
-      r.SetEditCurPos(newCurPos, false, false)
       itemGUID[2] = r.BR_GetMediaItemGUID(mediaItem)
       firstOrSecond = 2
       itemGUID[1] = so.GetNeighbor(itemGUID[2], firstOrSecond)
 
-      bool_success = true
+      bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
 
       return bool_success, itemGUID[1], itemGUID[2], firstOrSecond
 
     else
+
       -- mouse over 1st item
 
-      -- there are 2 types of fade in/out lengths
-      -- the script will only use the larger value of the two
-      local fadeOutLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
-      local fadeOutLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
-
-      if fadeOutLen <= fadeOutLenAuto then
-        fadeOutLen = fadeOutLenAuto
-      end
-
-      local newCurPos = itemEnd + (fadeOutLen * fadeLenMultEnd)
-
-      r.SetEditCurPos(newCurPos, false, false)
       itemGUID[1] = r.BR_GetMediaItemGUID(mediaItem)
       firstOrSecond = 1
       itemGUID[2] = so.GetNeighbor(itemGUID[1], firstOrSecond)
 
-      bool_success = true
+      bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
 
       return bool_success, itemGUID[1], itemGUID[2], firstOrSecond
 
@@ -89,6 +91,54 @@ function so.GetItemsNearMouse(fadeLenMultiplier_rx)
     bool_success = false
     return bool_success
   end
+end
+
+-------------------------------------------------------
+
+function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
+
+  local bool_success = false
+
+  local itemGUID = {}
+  itemGUID[1] = item1GUID_rx
+  itemGUID[2] = item2GUID_rx
+
+  local cursorBias = cursorBias_rx
+
+  local mediaItem = {}
+  local itemStart = {}
+  local itemEnd = {}
+
+  for i = 1, 2 do
+    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
+    if mediaItem[i] then
+      itemStart[i] = r.GetMediaItemInfo_Value(mediaItem[i], "D_POSITION")
+      itemEnd[i] = itemStart[i] + r.GetMediaItemInfo_Value(mediaItem[i], "D_LENGTH")
+    end
+  end
+
+  if mediaItem[1] and mediaItem[2] then
+    -- find center between item edges even if they are not faded / asymmetrically faded
+
+    local newCurPos
+
+    if itemStart[2] <= itemEnd[1] then
+      newCurPos = itemStart[2]
+    else
+      newCurPos = itemEnd[1]
+    end
+
+    newCurPos = newCurPos + (((itemEnd[1] - itemStart[2]) * cursorBias) / 2)
+
+    r.SetEditCurPos(newCurPos, false, false)
+    bool_success = true
+
+  else
+    bool_success = false
+  end
+
+  return bool_success
+
 end
 
 -------------------------------------------------------
@@ -259,6 +309,8 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedT
 
   end
 
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+
   return bool_success, mediaItem, pri, extendRestoreSwitch
 
 end
@@ -373,6 +425,51 @@ function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
 
 end
 
+--------------------------
+-- deprecated functions --
+--------------------------
+
+function so.SetEditCurPosCenterFade(mediaItem_rx, firstOrSecond_rx, cursorBias_rx)
+
+  -- there are 2 types of fade in/out lengths
+  -- the script will only use the larger value of the two
+
+  local mediaItem = mediaItem_rx
+  local cursorBias = cursorBias_rx
+
+  local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+  local itemEnd = itemStart + r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+
+  if firstOrSecond_rx == 2 then
+
+    local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
+    local fadeInLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
+
+    if fadeInLen <= fadeInLenAuto then
+      fadeInLen = fadeInLenAuto
+    end
+
+    local newCurPos = itemStart + (fadeInLen * cursorBias)
+
+    r.SetEditCurPos(newCurPos, false, false)
+
+  elseif firstOrSecond_rx == 1 then
+
+    local fadeOutLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
+    local fadeOutLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
+
+    if fadeOutLen <= fadeOutLenAuto then
+      fadeOutLen = fadeOutLenAuto
+    end
+
+    local newCurPos = itemEnd + (fadeOutLen * cursorBias)
+
+    r.SetEditCurPos(newCurPos, false, false)
+
+  end
+
+end
+
 -------------------------------------------------------
 
 function so.Test()
@@ -381,6 +478,9 @@ function so.Test()
 
 end
 
--------------------------------------------------------
+
+--------------
+-- required --
+--------------
 
 return so
