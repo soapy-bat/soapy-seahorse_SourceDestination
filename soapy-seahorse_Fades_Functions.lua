@@ -40,7 +40,7 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
   local mediaItem, itemStart, itemEnd
   local distanceToStart, distanceToEnd
-  local firstOrSecond
+  local mouseTarget
   local itemGUID = {}
   for i = 1, 2 do
     itemGUID[i] = "empty"
@@ -66,24 +66,24 @@ function so.GetItemsNearMouse(cursorBias_rx)
       -- mouse over 2nd item
 
       itemGUID[2] = r.BR_GetMediaItemGUID(mediaItem)
-      firstOrSecond = 2
-      itemGUID[1] = so.GetNeighbor(itemGUID[2], firstOrSecond)
+      mouseTarget = 2
+      itemGUID[1] = so.GetNeighbor(itemGUID[2], mouseTarget)
 
       bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
 
-      return bool_success, itemGUID[1], itemGUID[2], firstOrSecond
+      return bool_success, itemGUID[1], itemGUID[2], mouseTarget
 
     else
 
       -- mouse over 1st item
 
       itemGUID[1] = r.BR_GetMediaItemGUID(mediaItem)
-      firstOrSecond = 1
-      itemGUID[2] = so.GetNeighbor(itemGUID[1], firstOrSecond)
+      mouseTarget = 1
+      itemGUID[2] = so.GetNeighbor(itemGUID[1], mouseTarget)
 
       bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
 
-      return bool_success, itemGUID[1], itemGUID[2], firstOrSecond
+      return bool_success, itemGUID[1], itemGUID[2], mouseTarget
 
     end
 
