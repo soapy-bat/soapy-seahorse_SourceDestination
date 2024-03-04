@@ -143,10 +143,10 @@ end
 
 -------------------------------------------------------
 
-function so.GetNeighbor(mediaItemGUID_rx, firstOrSecond_rx)
+function so.GetNeighbor(mediaItemGUID_rx, mouseTarget_rx)
 
   local mediaItemGUID = mediaItemGUID_rx
-  local firstOrSecond = firstOrSecond_rx
+  local mouseTarget = mouseTarget_rx
   local flaggedGUID = mediaItemGUID
   local neighborGUID
 
@@ -172,7 +172,7 @@ function so.GetNeighbor(mediaItemGUID_rx, firstOrSecond_rx)
       
       if mediaItemGUID == flaggedGUID and itemLane == workingLane then
       
-        if firstOrSecond == 1 then
+        if mouseTarget == 1 then
 
           local nextItem = i+1
         
@@ -183,7 +183,7 @@ function so.GetNeighbor(mediaItemGUID_rx, firstOrSecond_rx)
           
           return neighborGUID
           
-        elseif firstOrSecond == 2 then
+        elseif mouseTarget == 2 then
 
           local prevItem = i-1
         
@@ -429,7 +429,7 @@ end
 -- deprecated functions --
 --------------------------
 
-function so.SetEditCurPosCenterFade(mediaItem_rx, firstOrSecond_rx, cursorBias_rx)
+function so.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
 
   -- there are 2 types of fade in/out lengths
   -- the script will only use the larger value of the two
@@ -440,7 +440,7 @@ function so.SetEditCurPosCenterFade(mediaItem_rx, firstOrSecond_rx, cursorBias_r
   local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
   local itemEnd = itemStart + r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
 
-  if firstOrSecond_rx == 2 then
+  if mouseTarget_rx == 2 then
 
     local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
     local fadeInLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
@@ -453,7 +453,7 @@ function so.SetEditCurPosCenterFade(mediaItem_rx, firstOrSecond_rx, cursorBias_r
 
     r.SetEditCurPos(newCurPos, false, false)
 
-  elseif firstOrSecond_rx == 1 then
+  elseif mouseTarget_rx == 1 then
 
     local fadeOutLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
     local fadeOutLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
