@@ -143,12 +143,11 @@ end
 
 -------------------------------------------------------
 
-function so.GetNeighbor(mediaItemGUID_rx, mouseTarget_rx)
+function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
-  local mediaItemGUID = mediaItemGUID_rx
   local mouseTarget = mouseTarget_rx
-  local flaggedGUID = mediaItemGUID
-  local neighborGUID
+  local flaggedGUID = flaggedGUID_rx
+  local mediaItemGUID, neighborGUID
 
   local workingLane = 0
   
@@ -163,7 +162,6 @@ function so.GetNeighbor(mediaItemGUID_rx, mouseTarget_rx)
   for i = 0, numSelectedItems - 1 do
   
     local mediaItem = r.GetSelectedMediaItem(0, i)
-
     local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
     
     if mediaItem then
