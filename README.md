@@ -1,3 +1,6 @@
 # soapy-seahorse_SourceDestination
-Warning: experimental functions!
-... how to will follow soon ...
+**Notice: many scripts require the file "soapy-seahorse_Fades_Functions.lua" in order to work**
+
+experimetal functions, work in progress
+
+how to will follow soon
