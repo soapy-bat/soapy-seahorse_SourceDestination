@@ -45,6 +45,8 @@ local item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp
 
 local targetItem = 1
 
+local rippleStateAll, rippleStatePer
+
 ----------
 -- main --
 ----------
@@ -57,6 +59,8 @@ function main()
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
   if bool_success then
+
+    rippleStateAll, rippleStatePer = so.SaveTurnOffRipple()
 
     local autoXFadeState = r.GetToggleCommandState(40041)
     local trimBehindState = r.GetToggleCommandState(41117)
@@ -73,6 +77,8 @@ function main()
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
     CheckPlayState()
+
+    so.ResetRipple(rippleStateAll, rippleStatePer)
 
     so.ResetTrimXFadeState(autoXFadeState, trimBehindState)
 

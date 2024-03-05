@@ -363,12 +363,30 @@ end
 
 -------------------------------------------------------
 
+function so.SaveEditStates()
+
+  local saveXFadeCommand = r.NamedCommandLookup("_SWS_SAVEXFD")
+  r.Main_OnCommand(saveXFadeCommand, 1) -- SWS: Save auto crossfade state
+  
+end
+
+-------------------------------------------------------
+
+function so.RestoreEditStates()
+
+  local restoreXFadeCommand = r.NamedCommandLookup("_SWS_RESTOREXFD")
+  r.Main_OnCommand(restoreXFadeCommand, 1) -- SWS: Restore auto crossfade state
+
+end
+
+-------------------------------------------------------
+
 function so.SetTrimXFadeState(autoXFadeState, trimBehindState)
 
   if autoXFadeState then
     r.Main_OnCommand(40041, 0) -- Options: Auto-crossfade media items when editing
   end
-  if trimBehindState then
+  if trimBehindState == 1 then
     r.Main_OnCommand(41117, 0) -- Options: Trim content behind media items when editing
   end
 
@@ -379,11 +397,35 @@ end
 function so.ResetTrimXFadeState(autoXFadeState, trimBehindState)
 
   if r.GetToggleCommandState(40041) ~= autoXFadeState then
-    r.Main_OnCommand(40041, 0) -- Options: Auto-crossfade media items when editing
+   r.Main_OnCommand(40041, 0) -- Options: Auto-crossfade media items when editing
   end
   if r.GetToggleCommandState(41117) ~= trimBehindState then
     r.Main_OnCommand(41117, 0) -- Options: Trim content behind media items when editing
   end
+
+end
+
+-------------------------------------------------------
+
+function so.SaveTurnOffRipple()
+
+    local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
+    local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
+    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+
+    return rippleStateAll, rippleStatePer
+
+end
+
+-------------------------------------------------------
+
+function so.ResetRipple(rippleStateAll, rippleStatePer)
+
+    if rippleStateAll == 1 then
+        r.Main_OnCommand(41991, 1)
+    elseif rippleStatePer == 1 then
+        r.Main_OnCommand(41991, 1)
+    end
 
 end
 
