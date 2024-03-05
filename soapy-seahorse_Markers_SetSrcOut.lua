@@ -56,8 +56,9 @@ function CreateSyncMarker()
     
             -- Get the relative cursor position within the active take, even when the playhead is moving
             local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-            local cursorPosInTake = cursorPos - r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
-    
+            local takeStartPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+            local cursorPosInTake = cursorPos - takeStartPos + r.GetMediaItemTakeInfo_Value(activeTake, "D_STARTOFFS")
+
             -- Add a take marker at the cursor position
             r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor|0x1000000)
 
