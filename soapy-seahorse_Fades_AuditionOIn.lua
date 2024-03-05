@@ -60,12 +60,7 @@ function main()
 
   if bool_success then
 
-    rippleStateAll, rippleStatePer = so.SaveTurnOffRipple()
-
-    local autoXFadeState = r.GetToggleCommandState(40041)
-    local trimBehindState = r.GetToggleCommandState(41117)
-
-    so.SetTrimXFadeState(autoXFadeState, trimBehindState)
+    rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
 
     bool_success, item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp = so.ItemExtender(item1GUID, item2GUID, extendedTime, targetItem, 1)
     
@@ -77,10 +72,6 @@ function main()
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
     CheckPlayState()
-
-    so.ResetRipple(rippleStateAll, rippleStatePer)
-
-    so.ResetTrimXFadeState(autoXFadeState, trimBehindState)
 
   else
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
@@ -106,6 +97,8 @@ function CheckPlayState()
   if playState == 0 then -- Transport is stopped
 
     bool_success = so.ItemExtender(item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp, -1)
+
+    so.RestoreEditStates(rippleStateAll, rippleStatePer)
     
     if not bool_success then
       r.ShowMessageBox("Item restoration unsuccessful.", "sorry!", 0)
