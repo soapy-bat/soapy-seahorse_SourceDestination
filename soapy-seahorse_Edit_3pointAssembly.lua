@@ -67,7 +67,13 @@ function main()
 
     ---######### START ##########---
 
-    r.Main_OnCommand(41119, 0) -- disable autocrossfade (less weird when pasting items)
+    local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
+    r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
+    
+    local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
+    local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
+    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+
     cursorPos_origin = r.GetCursorPosition()
   
     gateIsSet = GetSourceGateIn()
@@ -118,8 +124,15 @@ function main()
         else return end
 
     else return end
+
+    if rippleStateAll == 1 then
+        r.Main_OnCommand(41991, 1)
+    elseif rippleStatePer == 1 then
+        r.Main_OnCommand(41991, 1)
+    end
   
-    r.Main_OnCommand(41118, 0) -- enable autocrossfade again
+    local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
+    r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
     ---######### END ##########---
 
