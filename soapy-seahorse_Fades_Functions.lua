@@ -162,7 +162,7 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
   for i = 0, numSelectedItems - 1 do
   
     local mediaItem = r.GetSelectedMediaItem(0, i)
-    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE") -- great starting point, but it happens in the wrong place
     
     if mediaItem then
     
