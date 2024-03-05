@@ -70,9 +70,7 @@ function main()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
     
-    local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
-    local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
-    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+    local rippleStateAll, rippleStatePer = SaveTurnOffRipple()
 
     cursorPos_origin = r.GetCursorPosition()
   
@@ -125,11 +123,7 @@ function main()
 
     else return end
 
-    if rippleStateAll == 1 then
-        r.Main_OnCommand(41991, 1)
-    elseif rippleStatePer == 1 then
-        r.Main_OnCommand(41991, 1)
-    end
+    ResetRipple(rippleStateAll, rippleStatePer)
   
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -352,6 +346,30 @@ function RemoveAllSourceGates(safeLane_rx)
   
   r.Main_OnCommand(40289, 0) -- Deselect all items
   
+end
+
+------------------------------------------
+
+function SaveTurnOffRipple()
+
+    local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
+    local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
+    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+
+    return rippleStateAll, rippleStatePer
+
+end
+
+------------------------------------------
+
+function ResetRipple(rippleStateAll, rippleStatePer)
+
+    if rippleStateAll == 1 then
+        r.Main_OnCommand(41991, 1)
+    elseif rippleStatePer == 1 then
+        r.Main_OnCommand(41991, 1)
+    end
+
 end
 
 
