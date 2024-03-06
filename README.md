@@ -27,4 +27,8 @@ All "Fades" scripts.
 - Development and documentation are in progress. Please report any issues with the provided functions.
 
 # Limitations
-see "Issues" on GitHub
+see ["Issues"](https://github.com/soapy-bat/soapy-seahorse_SourceDestination/issues) on GitHub
+
+# Credits
+copyright 2024 the soapy zoo
+copyleft [chmaha](https://chmaha.github.io/ReaClassical/)
