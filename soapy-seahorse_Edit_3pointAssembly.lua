@@ -96,7 +96,6 @@ function main()
         -- go to start of pasted item
         r.GoToMarker(0, destinationIdxIn, false)
 
-
         if bool_AutoCrossfade then
             SetCrossfade(xfadeLen)
         end
@@ -178,7 +177,7 @@ end
 
 -------------------------------------------------------------------
 
-function PasteToTopLane() -- needs a workaround because you can't (yet?) select lanes
+function PasteToTopLane()
 
   r.GoToMarker(0, destinationIdxIn, false)
   r.Main_OnCommand(42790, 0) -- play only first lane
