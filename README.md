@@ -1,5 +1,5 @@
 # soapy-seahorse_SourceDestination
-The seahorse scripts provide tools for two multitrack workflows:
+The seahorse scripts provide tools for two multitrack workflows inside REAPER:
 
 ## 1. Three-point soure-destination editing
 ### Required
@@ -11,6 +11,7 @@ The seahorse scripts provide tools for two multitrack workflows:
 ### Notes
 - The script "Edit_3pointAssembly" allows user customization by editing the "user settings" at the beginning of the file.
 - 4-point editing is planned at a later stage.
+- The script assumes that source items be places on fixed item lanes and that the topmost lane will contain the comp.
 
 ## 2. Fade auditioning
 ### Required
@@ -26,6 +27,7 @@ The seahorse scripts provide tools for two multitrack workflows:
 # Important notice
 - Many scripts require the file "soapy-seahorse_Fades_Functions.lua" in order to work.
 - Development and documentation are in progress. Please report any issues with the provided functions.
+- When editing in ripple edit mode, the [following scripts](https://github.com/soapy-bat/soapy-snail_LockSource) might be useful.
 
 # Limitations
 [see "Issues" on GitHub](https://github.com/soapy-bat/soapy-seahorse_SourceDestination/issues)
