@@ -1,5 +1,5 @@
 # soapy-seahorse_SourceDestination
-The seahorse scripts provide tools for two multitrack workflows inside REAPER:
+The seahorse scripts provide tools for two multitrack workflows using REAPER:
 
 ## 1. Three-point soure-destination editing
 ### Required
