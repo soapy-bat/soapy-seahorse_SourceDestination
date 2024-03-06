@@ -28,7 +28,7 @@ The seahorse scripts provide tools for two multitrack workflows:
 - Development and documentation are in progress. Please report any issues with the provided functions.
 
 # Limitations
-see ["Issues"](https://github.com/soapy-bat/soapy-seahorse_SourceDestination/issues) on GitHub
+[see "Issues" on GitHub](https://github.com/soapy-bat/soapy-seahorse_SourceDestination/issues)
 
 # Credits
 - copyright 2024 the soapy zoo
