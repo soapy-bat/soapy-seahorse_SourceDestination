@@ -1,5 +1,4 @@
 # soapy-seahorse_SourceDestination: Overview
----
 The seahorse scripts provide tools for two multitrack workflows:
 
 ## 1. three-point soure-destination editing
@@ -18,10 +17,8 @@ The seahorse scripts provide tools for two multitrack workflows:
 - Make sure to activate "Offset overlapping media items vertically" and "Show / play only one lane" when auditioning using AuditionOIn and AuditionOOut.
 
 # Important notice
----
 - Many scripts require the file "soapy-seahorse_Fades_Functions.lua" in order to work.
 - Development and documentation are in progress. Please report any issues with the provided functions.
 
 # Limitations
----
 see "Issues" on GitHub
