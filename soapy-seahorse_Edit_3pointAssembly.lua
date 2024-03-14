@@ -254,17 +254,32 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
     -- make sure only items in the topmost lane are affected
+
+    local selectedItemsGUID = {}
+
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
-        
+
         local mediaItem = r.GetSelectedMediaItem(0, i)
 
         if mediaItem then
 
             local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
+            
             if itemLane >= 1 then
-                r.SetMediaItemSelected(mediaItem, 0)
+                selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
             end
+
+        end
+
+    end
+
+    for i = 0, #selectedItemsGUID do
+
+        local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
+
+        if mediaItem then
+
+            r.SetMediaItemSelected(mediaItem, 0)
 
         end
 
