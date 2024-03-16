@@ -149,7 +149,7 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
   local flaggedGUID = flaggedGUID_rx
   local mouseTarget = mouseTarget_rx
 
-  local compItemsGUID = {}
+  local laneItemsGUID = {}
 
   -- get media track and fixed lane of flagged item
   local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
@@ -159,7 +159,6 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
   local flaggedIndex
 
   -- get array of items on fixed lane
-  -- what will the order of the items be?
   if mediaTrack then
 
     local itemCount = r.CountTrackMediaItems(mediaTrack)
@@ -173,7 +172,8 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
             local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
             if itemLane == flaggedLane then
-                compItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
+              local newGUID = r.BR_GetMediaItemGUID(mediaItem)
+              table.insert(laneItemsGUID, newGUID)
             end
 
         end
@@ -182,30 +182,38 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
     -- get index of flagged item
 
-    for i = 0, #compItemsGUID - 1 do
+    for i = 0, #laneItemsGUID do
 
-      local GUID = compItemsGUID[i]
+      local GUID = laneItemsGUID[i]
 
       if GUID == flaggedGUID then
-
         flaggedIndex = i
-
       end
 
+    end
+
+    if flaggedIndex == #laneItemsGUID and mouseTarget == 1 then
+      r.ShowMessageBox("Something went wrong.", "Sorry", 0)
+      return
+    end
+
+    if not flaggedIndex then
+      r.ShowMessageBox("Something went wrong: Index is nil", "Sorry", 0)
+      return
     end
 
     -- find neighbor
 
     if mouseTarget == 1 then
     
-      mediaItem = r.BR_GetMediaItemByGUID(0, compItemsGUID[flaggedIndex + 1])
+      mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex + 1])
       local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
       
       return neighborGUID
       
     elseif mouseTarget == 2 then
     
-      mediaItem = r.BR_GetMediaItemByGUID(0, compItemsGUID[flaggedIndex - 1])
+      mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex - 1])
       local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
       
       return neighborGUID
