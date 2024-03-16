@@ -145,60 +145,74 @@ end
 
 function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
-  local mouseTarget = mouseTarget_rx
+  -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
-  local mediaItemGUID, neighborGUID
+  local mouseTarget = mouseTarget_rx
 
-  local workingLane = 0
-  
-  -- script is not taking into account lane show / hide state!
-  -- solution: check neighbor using lane number.
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-  
-  local numSelectedItems = r.CountSelectedMediaItems(0)
-  
-  for i = 0, numSelectedItems - 1 do
-  
-    local mediaItem = r.GetSelectedMediaItem(0, i)
-    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE") -- great starting point, but it happens in the wrong place
-    
-    if mediaItem then
-    
-      mediaItemGUID = r.BR_GetMediaItemGUID(mediaItem)
-      
-      if mediaItemGUID == flaggedGUID and itemLane == workingLane then
-      
-        if mouseTarget == 1 then
+  local compItemsGUID = {}
 
-          local nextItem = i+1
-        
-          mediaItem = r.GetSelectedMediaItem(0, nextItem)
-          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+  -- get media track and fixed lane of flagged item
+  local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
+  local mediaTrack = r.GetMediaItem_Track(flaggedItem)
+  local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
 
-          r.Main_OnCommand(40289, 0) -- Deselect all items
-          
-          return neighborGUID
-          
-        elseif mouseTarget == 2 then
+  local flaggedIndex
 
-          local prevItem = i-1
-        
-          mediaItem = r.GetSelectedMediaItem(0, prevItem)
-          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-          
-          r.Main_OnCommand(40289, 0) -- Deselect all items
+  -- get array of items on fixed lane
+  -- what will the order of the items be?
+  if mediaTrack then
 
-          return neighborGUID
-        
+    local itemCount = r.CountTrackMediaItems(mediaTrack)
+
+    for i = 0, itemCount - 1 do
+
+        local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
+
+        if mediaItem then
+
+            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+            if itemLane == flaggedLane then
+                compItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
+            end
+
         end
-      end
-    end
-  end
 
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.UpdateArrange()
+    end
+
+    -- get index of flagged item
+
+    for i = 0, #compItemsGUID - 1 do
+
+      local GUID = compItemsGUID[i]
+
+      if GUID == flaggedGUID then
+
+        flaggedIndex = i
+
+      end
+
+    end
+
+    -- find neighbor
+
+    if mouseTarget == 1 then
+    
+      mediaItem = r.BR_GetMediaItemByGUID(0, compItemsGUID[flaggedIndex + 1])
+      local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+      
+      return neighborGUID
+      
+    elseif mouseTarget == 2 then
+    
+      mediaItem = r.BR_GetMediaItemByGUID(0, compItemsGUID[flaggedIndex - 1])
+      local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+      
+      return neighborGUID
+    
+    end
+
+  end
 
 end
 
@@ -431,6 +445,67 @@ end
 --------------------------
 -- deprecated functions --
 --------------------------
+
+function so.GetNeighbor_old(flaggedGUID_rx, mouseTarget_rx)
+
+  local mouseTarget = mouseTarget_rx
+  local flaggedGUID = flaggedGUID_rx
+  local mediaItemGUID, neighborGUID
+
+  local workingLane = 0
+  
+  -- script is not taking into account lane show / hide state!
+  -- solution: check neighbor using lane number.
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+  r.Main_OnCommand(40421, 0) -- Item: Select all items in track
+  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+  
+  local numSelectedItems = r.CountSelectedMediaItems(0)
+  
+  for i = 0, numSelectedItems - 1 do
+  
+    local mediaItem = r.GetSelectedMediaItem(0, i)
+    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE") -- great starting point, but it happens in the wrong place
+    
+    if mediaItem then
+    
+      mediaItemGUID = r.BR_GetMediaItemGUID(mediaItem)
+      
+      if mediaItemGUID == flaggedGUID and itemLane == workingLane then
+      
+        if mouseTarget == 1 then
+
+          local nextItem = i+1
+        
+          mediaItem = r.GetSelectedMediaItem(0, nextItem)
+          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+
+          r.Main_OnCommand(40289, 0) -- Deselect all items
+          
+          return neighborGUID
+          
+        elseif mouseTarget == 2 then
+
+          local prevItem = i-1
+        
+          mediaItem = r.GetSelectedMediaItem(0, prevItem)
+          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+          
+          r.Main_OnCommand(40289, 0) -- Deselect all items
+
+          return neighborGUID
+        
+        end
+      end
+    end
+  end
+
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+  r.UpdateArrange()
+
+end
+
+-------------------------------------------------------
 
 function so.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
 
