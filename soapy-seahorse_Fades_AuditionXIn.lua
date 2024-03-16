@@ -86,6 +86,7 @@ function CheckPlayState()
   if playState == 0 then -- Transport is stopped
 
     bool_success = so.ToggleItemMuteState(itemGUID_temp, -1)
+    r.DeleteProjectMarker(0, 998, false)
 
     if not bool_success then
       r.ShowMessageBox("Mute state change unsuccessful.", "sorry!", 0)

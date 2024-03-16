@@ -143,83 +143,91 @@ end
 
 -------------------------------------------------------
 
+function so.GetItemsOnLane(flaggedGUID_rx)
+
+  local flaggedGUID = flaggedGUID_rx
+
+  -- get media track and fixed lane of flagged item
+  local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
+  if not flaggedItem then return end
+  local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
+
+  local mediaTrack = r.GetMediaItem_Track(flaggedItem)
+  if not mediaTrack then return end
+  local itemCount = r.CountTrackMediaItems(mediaTrack)
+
+  local laneItemsGUID = {}
+
+  for i = 0, itemCount - 1 do
+
+    local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
+    if not mediaItem then return end
+
+    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+    if itemLane == flaggedLane then
+      local newGUID = r.BR_GetMediaItemGUID(mediaItem)
+      table.insert(laneItemsGUID, newGUID)
+    end
+
+  end
+
+  return laneItemsGUID
+
+end
+
+-------------------------------------------------------
+
 function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
   -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
   local mouseTarget = mouseTarget_rx
 
-  local laneItemsGUID = {}
-
-  -- get media track and fixed lane of flagged item
-  local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
-  local mediaTrack = r.GetMediaItem_Track(flaggedItem)
-  local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
-
   local flaggedIndex
 
   -- get array of items on fixed lane
-  if mediaTrack then
+  local laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
+  if not laneItemsGUID then return end
 
-    local itemCount = r.CountTrackMediaItems(mediaTrack)
+  -- get index of flagged item
 
-    for i = 0, itemCount - 1 do
+  for i = 0, #laneItemsGUID do
 
-        local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
+    local GUID = laneItemsGUID[i]
 
-        if mediaItem then
-
-            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-            if itemLane == flaggedLane then
-              local newGUID = r.BR_GetMediaItemGUID(mediaItem)
-              table.insert(laneItemsGUID, newGUID)
-            end
-
-        end
-
+    if GUID == flaggedGUID then
+      flaggedIndex = i
     end
 
-    -- get index of flagged item
+  end
 
-    for i = 0, #laneItemsGUID do
+  if flaggedIndex == #laneItemsGUID and mouseTarget == 1 then
+    r.ShowMessageBox("No fade to audition.", "Sorry", 0)
+    return
+  end
 
-      local GUID = laneItemsGUID[i]
+  if not flaggedIndex then
+    r.ShowMessageBox("Something went wrong: Index is nil", "Sorry", 0)
+    return
+  end
 
-      if GUID == flaggedGUID then
-        flaggedIndex = i
-      end
+  -- find neighbor
 
-    end
-
-    if flaggedIndex == #laneItemsGUID and mouseTarget == 1 then
-      r.ShowMessageBox("Something went wrong.", "Sorry", 0)
-      return
-    end
-
-    if not flaggedIndex then
-      r.ShowMessageBox("Something went wrong: Index is nil", "Sorry", 0)
-      return
-    end
-
-    -- find neighbor
-
-    if mouseTarget == 1 then
+  if mouseTarget == 1 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex + 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
-      mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex + 1])
-      local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-      
-      return neighborGUID
-      
-    elseif mouseTarget == 2 then
+    return neighborGUID
     
-      mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex - 1])
-      local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-      
-      return neighborGUID
+  elseif mouseTarget == 2 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex - 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
-    end
-
+    return neighborGUID
+  
   end
 
 end
@@ -432,13 +440,11 @@ function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
   startPos = curPos - preRoll
   stopPos = curPos + postRoll
   
-  r.DeleteProjectMarker(0, 999, false)
   r.DeleteProjectMarker(0, 998, false)
 
   if bool_TransportAutoStop then
     -- SWS marker actions are executed in ascending order of their marker indices.
     r.AddProjectMarker2(0, false, stopPos, stopPos, "!1016", 998, r.ColorToNative(10, 10, 10) | 0x1000000) -- sws action marker: Transport Stop
-    r.AddProjectMarker2(0, false, stopPos, stopPos, "!_SWSMARKERLIST9", 999, r.ColorToNative(10, 10, 10) | 0x1000000) -- sws: Delete All Markers
   end
 
   r.SetEditCurPos(startPos, false, false)

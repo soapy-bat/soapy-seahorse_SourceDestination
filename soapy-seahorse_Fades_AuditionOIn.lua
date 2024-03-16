@@ -63,7 +63,7 @@ function main()
     rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
 
     bool_success, item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp = so.ItemExtender(item1GUID, item2GUID, extendedTime, targetItem, 1)
-    
+
     if not bool_success then
       r.ShowMessageBox("ItemExtender unsuccessful.", "sorry!", 0)
       return
@@ -97,6 +97,8 @@ function CheckPlayState()
   if playState == 0 then -- Transport is stopped
 
     bool_success = so.ItemExtender(item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp, -1)
+
+    r.DeleteProjectMarker(0, 998, false)
 
     so.RestoreEditStates(rippleStateAll, rippleStatePer)
     

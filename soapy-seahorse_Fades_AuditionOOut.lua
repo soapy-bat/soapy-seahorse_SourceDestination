@@ -98,6 +98,8 @@ function CheckPlayState()
 
     bool_success = so.ItemExtender(item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp, -1)
 
+    r.DeleteProjectMarker(0, 998, false)
+
     so.RestoreEditStates(rippleStateAll, rippleStatePer)
 
     if not bool_success then

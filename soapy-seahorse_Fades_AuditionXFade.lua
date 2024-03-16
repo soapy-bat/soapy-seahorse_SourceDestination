@@ -53,6 +53,7 @@ function main()
 
   if bool_success then
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+    CheckPlayState()
   else
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
   end
@@ -60,6 +61,31 @@ function main()
   r.PreventUIRefresh(-1)
   r.UpdateArrange()
   r.Undo_EndBlock("Audition Crossfade", 0)
+
+end
+
+---------------
+-- functions --
+---------------
+
+function CheckPlayState()
+
+  local playState = r.GetPlayState()
+
+  local bool_success = false
+  local bool_exit = false
+    
+  if playState == 0 then -- Transport is stopped
+
+    r.DeleteProjectMarker(0, 998, false)
+
+    bool_exit = true
+  end
+
+  if bool_exit then return end
+
+  -- Schedule the function to run continuously
+  r.defer(CheckPlayState)
 
 end
 
