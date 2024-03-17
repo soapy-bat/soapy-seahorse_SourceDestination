@@ -28,9 +28,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 local r = reaper
 local so = {}
 
----------------
--- functions --
----------------
+--------------------------------------------
+-- functions: information retrieval (get) --
+--------------------------------------------
 
 function so.GetItemsNearMouse(cursorBias_rx)
 
@@ -50,7 +50,7 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
   -- mouseX and transport location are compatible
   
-  -- bis jetzt nur Berücksichtigung der Position, wenn Maus auf Item ist
+  -- Berücksichtigung der Position nur, wenn Maus auf Item ist
   mediaItem, mouseX = r.BR_ItemAtMouseCursor()
   
   if mediaItem then
@@ -95,54 +95,6 @@ end
 
 -------------------------------------------------------
 
-function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
-
-  local bool_success = false
-
-  local itemGUID = {}
-  itemGUID[1] = item1GUID_rx
-  itemGUID[2] = item2GUID_rx
-
-  local cursorBias = cursorBias_rx
-
-  local mediaItem = {}
-  local itemStart = {}
-  local itemEnd = {}
-
-  for i = 1, 2 do
-    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
-    if mediaItem[i] then
-      itemStart[i] = r.GetMediaItemInfo_Value(mediaItem[i], "D_POSITION")
-      itemEnd[i] = itemStart[i] + r.GetMediaItemInfo_Value(mediaItem[i], "D_LENGTH")
-    end
-  end
-
-  if mediaItem[1] and mediaItem[2] then
-    -- find center between item edges even if they are not faded / asymmetrically faded
-
-    local newCurPos
-
-    if itemStart[2] <= itemEnd[1] then
-      newCurPos = itemStart[2]
-    else
-      newCurPos = itemEnd[1]
-    end
-
-    newCurPos = newCurPos + (((itemEnd[1] - itemStart[2]) * cursorBias) / 2)
-
-    r.SetEditCurPos(newCurPos, false, false)
-    bool_success = true
-
-  else
-    bool_success = false
-  end
-
-  return bool_success
-
-end
-
--------------------------------------------------------
-
 function so.GetItemsOnSameLane(flaggedGUID_rx)
 
   local flaggedGUID = flaggedGUID_rx
@@ -175,38 +127,6 @@ function so.GetItemsOnSameLane(flaggedGUID_rx)
   end
 
   return tbl_laneItemsGUID
-
-end
-
--------------------------------------------------------
-
-function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, flaggedGUID_rx, muteState_rx)
-
-  local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
-  local flaggedGUID = flaggedGUID_rx
-  local muteState = muteState_rx
-
-  local tbl_mutedItems = {}
-
-  for i = 1, #tbl_mediaItemGUIDs do
-
-    if tbl_mediaItemGUIDs[i] ~= flaggedGUID then
-
-      local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[i])
-      for k = 1, #tbl_groupedItems do
-
-        local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
-        if mediaItem then
-
-          table.insert(tbl_mutedItems, tbl_groupedItems[k])
-          r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
-
-        end
-      end
-    end
-  end
-
-  return tbl_mutedItems
 
 end
 
@@ -320,6 +240,88 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
     return neighborGUID
   
   end
+
+end
+
+------------------------------------------------------
+-- functions: parameter manipulation (set / toggle) --
+------------------------------------------------------
+
+function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
+
+  local bool_success = false
+
+  local itemGUID = {}
+  itemGUID[1] = item1GUID_rx
+  itemGUID[2] = item2GUID_rx
+
+  local cursorBias = cursorBias_rx
+
+  local mediaItem = {}
+  local itemStart = {}
+  local itemEnd = {}
+
+  for i = 1, 2 do
+    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
+    if mediaItem[i] then
+      itemStart[i] = r.GetMediaItemInfo_Value(mediaItem[i], "D_POSITION")
+      itemEnd[i] = itemStart[i] + r.GetMediaItemInfo_Value(mediaItem[i], "D_LENGTH")
+    end
+  end
+
+  if mediaItem[1] and mediaItem[2] then
+    -- find center between item edges even if they are not faded / asymmetrically faded
+
+    local newCurPos
+
+    if itemStart[2] <= itemEnd[1] then
+      newCurPos = itemStart[2]
+    else
+      newCurPos = itemEnd[1]
+    end
+
+    newCurPos = newCurPos + (((itemEnd[1] - itemStart[2]) * cursorBias) / 2)
+
+    r.SetEditCurPos(newCurPos, false, false)
+    bool_success = true
+
+  else
+    bool_success = false
+  end
+
+  return bool_success
+
+end
+
+-------------------------------------------------------
+
+function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, flaggedGUID_rx, muteState_rx)
+
+  local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
+  local flaggedGUID = flaggedGUID_rx
+  local muteState = muteState_rx
+
+  local tbl_mutedItems = {}
+
+  for i = 1, #tbl_mediaItemGUIDs do
+
+    if tbl_mediaItemGUIDs[i] ~= flaggedGUID then
+
+      local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[i])
+      for k = 1, #tbl_groupedItems do
+
+        local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
+        if mediaItem then
+
+          table.insert(tbl_mutedItems, tbl_groupedItems[k])
+          r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
+
+        end
+      end
+    end
+  end
+
+  return tbl_mutedItems
 
 end
 
@@ -475,37 +477,6 @@ end
 
 -------------------------------------------------------
 
-function so.SaveEditStates()
-
-  local saveXFadeCommand = r.NamedCommandLookup("_SWS_SAVEXFD")
-  r.Main_OnCommand(saveXFadeCommand, 1) -- SWS: Save auto crossfade state
-
-  local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
-  local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
-  r.Main_OnCommand(40309, 1) -- Set ripple editing off
-
-  return rippleStateAll, rippleStatePer
-
-  
-end
-
--------------------------------------------------------
-
-function so.RestoreEditStates(rippleStateAll, rippleStatePer)
-
-  local restoreXFadeCommand = r.NamedCommandLookup("_SWS_RESTOREXFD")
-  r.Main_OnCommand(restoreXFadeCommand, 1) -- SWS: Restore auto crossfade state
-
-  if rippleStateAll == 1 then
-    r.Main_OnCommand(41991, 1)
-  elseif rippleStatePer == 1 then
-    r.Main_OnCommand(41991, 1)
-  end
-
-end
-
--------------------------------------------------------
-
 function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
 
   local preRoll = preRoll_rx
@@ -535,6 +506,36 @@ function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
 
   r.BR_SetArrangeView(0, arngViewStart, arngViewEnd)
   r.Main_OnCommand(40036, 1) -- View: Toggle auto-view-scroll during playback
+
+end
+
+-------------------------------------------------------
+
+function so.SaveEditStates()
+
+  local saveXFadeCommand = r.NamedCommandLookup("_SWS_SAVEXFD")
+  r.Main_OnCommand(saveXFadeCommand, 1) -- SWS: Save auto crossfade state
+
+  local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
+  local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
+  r.Main_OnCommand(40309, 1) -- Set ripple editing off
+
+  return rippleStateAll, rippleStatePer
+  
+end
+
+-------------------------------------------------------
+
+function so.RestoreEditStates(rippleStateAll, rippleStatePer)
+
+  local restoreXFadeCommand = r.NamedCommandLookup("_SWS_RESTOREXFD")
+  r.Main_OnCommand(restoreXFadeCommand, 1) -- SWS: Restore auto crossfade state
+
+  if rippleStateAll == 1 then
+    r.Main_OnCommand(41991, 1)
+  elseif rippleStatePer == 1 then
+    r.Main_OnCommand(41991, 1)
+  end
 
 end
 
