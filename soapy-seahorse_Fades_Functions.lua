@@ -161,18 +161,103 @@ function so.GetItemsOnLane(flaggedGUID_rx)
   for i = 0, itemCount - 1 do
 
     local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
-    if not mediaItem then return end
+    if mediaItem then
 
-    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+      local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
-    if itemLane == flaggedLane then
-      local newGUID = r.BR_GetMediaItemGUID(mediaItem)
-      table.insert(laneItemsGUID, newGUID)
+      if itemLane == flaggedLane then
+        local newGUID = r.BR_GetMediaItemGUID(mediaItem)
+        table.insert(laneItemsGUID, newGUID)
+      end
+
     end
 
   end
 
   return laneItemsGUID
+
+end
+
+-------------------------------------------------------
+
+function so.ToggleItemMute(laneItemsGUID_rx, flaggedGUID_rx, muteState_rx)
+
+  local laneItemsGUID = laneItemsGUID_rx
+  local flaggedGUID = flaggedGUID_rx
+  local muteState = muteState_rx
+
+  for i = 1, #laneItemsGUID do
+
+    if laneItemsGUID[i] ~= flaggedGUID then
+
+      local groupedItems = so.GetGroupedItems(laneItemsGUID[i])
+      for k = 1, #groupedItems do
+
+        local mediaItem = r.BR_GetMediaItemByGUID(0, groupedItems[k])
+        if mediaItem then
+
+          r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
+
+        end
+      end
+    end
+  end
+end
+
+-------------------------------------------------------
+
+function so.GetAllItemsGUID()
+
+  local itemCount = r.CountMediaItems(0)
+  local projectItemsGUID = {}
+
+  for i = 0, itemCount - 1 do
+
+    local mediaItem = r.GetMediaItem(0, i)
+    if mediaItem then
+      local itemGUID = r.BR_GetMediaItemGUID(mediaItem)
+      if itemGUID then
+
+        table.insert(projectItemsGUID, itemGUID)
+
+      end
+    end
+  end
+
+  return projectItemsGUID
+
+end
+
+-------------------------------------------------------
+
+function so.GetGroupedItems(itemGUID_rx)
+
+  local itemGUID = itemGUID_rx
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+
+  local groupedItemsGUID = {}
+
+  local groupID = r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID")
+  if groupID ~= 0 then
+
+    local allItemsGUID = so.GetAllItemsGUID()
+
+    for i = 1, #allItemsGUID do
+
+      local mediaItem = r.BR_GetMediaItemByGUID(0, allItemsGUID[i])
+
+      if mediaItem then
+
+        if r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID") == groupID then
+          -- table.insert indexes from 1, not from 0 (lua convention)
+          table.insert(groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
+        end
+
+      end
+    end
+  end
+
+  return groupedItemsGUID
 
 end
 
@@ -311,13 +396,10 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedT
   -- the magic happens here
   if pri == 1 then
 
-    -- sometimes weird fades occur with SetItemEdges?
-    --local newLength = itemLength + (extendedTime * extendRestoreSwitch)
     local newEnd = itemEnd + (extendedTime * extendRestoreSwitch)
   
     for t = 0, r.CountSelectedMediaItems(0) - 1 do
       local currentItem = r.GetSelectedMediaItem(0, t)
-      --r.SetMediaItemInfo_Value(currentItem, "D_LENGTH", newLength)
       r.BR_SetItemEdges(currentItem, itemStart, newEnd)
     end
 
@@ -347,9 +429,6 @@ end
 
 function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
 
-  -- if first then mute all items to the right
-  -- if second then mute all items to the left
-
   -- if item is in target lane
   -- and if item has start point before / after target item
   -- and if mediaitem
@@ -361,31 +440,28 @@ function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
   local bool_success = false
 
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return end
 
-  if mediaItem then
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+  r.SetMediaItemSelected(mediaItem, 1)
+  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-    r.SetMediaItemSelected(mediaItem, 1)
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+  local muteState
 
-    local muteState
-
-    if extendRestoreSwitch == 1 then
-      muteState = 1
-    elseif extendRestoreSwitch == -1 then
-      muteState = 0
-    end
-
-    for g = 0, r.CountSelectedMediaItems(0) - 1 do
-      local currentItem = r.GetSelectedMediaItem(0, g)
-      r.SetMediaItemInfo_Value(currentItem, "B_MUTE", muteState)
-    end
-
-    bool_success = true
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-
+  if extendRestoreSwitch == 1 then
+    muteState = 1
+  elseif extendRestoreSwitch == -1 then
+    muteState = 0
   end
+
+  for g = 0, r.CountSelectedMediaItems(0) - 1 do
+    local currentItem = r.GetSelectedMediaItem(0, g)
+    r.SetMediaItemInfo_Value(currentItem, "B_MUTE", muteState)
+  end
+
+  bool_success = true
+
+  r.Main_OnCommand(40289, 0) -- Deselect all items
 
   return bool_success, itemGUID, extendRestoreSwitch
 
