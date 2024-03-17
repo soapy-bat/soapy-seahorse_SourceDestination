@@ -143,7 +143,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetItemsOnLane(flaggedGUID_rx)
+function so.GetItemsOnSameLane(flaggedGUID_rx)
 
   local flaggedGUID = flaggedGUID_rx
 
@@ -156,7 +156,7 @@ function so.GetItemsOnLane(flaggedGUID_rx)
   if not mediaTrack then return end
   local itemCount = r.CountTrackMediaItems(mediaTrack)
 
-  local laneItemsGUID = {}
+  local tbl_laneItemsGUID = {}
 
   for i = 0, itemCount - 1 do
 
@@ -167,41 +167,47 @@ function so.GetItemsOnLane(flaggedGUID_rx)
 
       if itemLane == flaggedLane then
         local newGUID = r.BR_GetMediaItemGUID(mediaItem)
-        table.insert(laneItemsGUID, newGUID)
+        table.insert(tbl_laneItemsGUID, newGUID)
       end
 
     end
 
   end
 
-  return laneItemsGUID
+  return tbl_laneItemsGUID
 
 end
 
 -------------------------------------------------------
 
-function so.ToggleItemMute(laneItemsGUID_rx, flaggedGUID_rx, muteState_rx)
+function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, flaggedGUID_rx, muteState_rx)
 
-  local laneItemsGUID = laneItemsGUID_rx
+  local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
   local flaggedGUID = flaggedGUID_rx
   local muteState = muteState_rx
 
-  for i = 1, #laneItemsGUID do
+  local tbl_mutedItems = {}
 
-    if laneItemsGUID[i] ~= flaggedGUID then
+  for i = 1, #tbl_mediaItemGUIDs do
 
-      local groupedItems = so.GetGroupedItems(laneItemsGUID[i])
-      for k = 1, #groupedItems do
+    if tbl_mediaItemGUIDs[i] ~= flaggedGUID then
 
-        local mediaItem = r.BR_GetMediaItemByGUID(0, groupedItems[k])
+      local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[i])
+      for k = 1, #tbl_groupedItems do
+
+        local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
         if mediaItem then
 
+          table.insert(tbl_mutedItems, tbl_groupedItems[k])
           r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
 
         end
       end
     end
   end
+
+  return tbl_mutedItems
+
 end
 
 -------------------------------------------------------
@@ -209,7 +215,7 @@ end
 function so.GetAllItemsGUID()
 
   local itemCount = r.CountMediaItems(0)
-  local projectItemsGUID = {}
+  local tbl_projectItemsGUID = {}
 
   for i = 0, itemCount - 1 do
 
@@ -218,13 +224,13 @@ function so.GetAllItemsGUID()
       local itemGUID = r.BR_GetMediaItemGUID(mediaItem)
       if itemGUID then
 
-        table.insert(projectItemsGUID, itemGUID)
+        table.insert(tbl_projectItemsGUID, itemGUID)
 
       end
     end
   end
 
-  return projectItemsGUID
+  return tbl_projectItemsGUID
 
 end
 
@@ -235,29 +241,29 @@ function so.GetGroupedItems(itemGUID_rx)
   local itemGUID = itemGUID_rx
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
 
-  local groupedItemsGUID = {}
+  local tbl_groupedItemsGUID = {}
 
   local groupID = r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID")
   if groupID ~= 0 then
 
-    local allItemsGUID = so.GetAllItemsGUID()
+    local tbl_allItemsGUID = so.GetAllItemsGUID()
 
-    for i = 1, #allItemsGUID do
+    for i = 1, #tbl_allItemsGUID do
 
-      local mediaItem = r.BR_GetMediaItemByGUID(0, allItemsGUID[i])
+      local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_allItemsGUID[i])
 
       if mediaItem then
 
         if r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID") == groupID then
           -- table.insert indexes from 1, not from 0 (lua convention)
-          table.insert(groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
+          table.insert(tbl_groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
         end
 
       end
     end
   end
 
-  return groupedItemsGUID
+  return tbl_groupedItemsGUID
 
 end
 
@@ -272,14 +278,14 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
   local flaggedIndex
 
   -- get array of items on fixed lane
-  local laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
-  if not laneItemsGUID then return end
+  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
+  if not tbl_laneItemsGUID then return end
 
   -- get index of flagged item
 
-  for i = 0, #laneItemsGUID do
+  for i = 0, #tbl_laneItemsGUID do
 
-    local GUID = laneItemsGUID[i]
+    local GUID = tbl_laneItemsGUID[i]
 
     if GUID == flaggedGUID then
       flaggedIndex = i
@@ -287,7 +293,7 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
   end
 
-  if flaggedIndex == #laneItemsGUID and mouseTarget == 1 then
+  if flaggedIndex == #tbl_laneItemsGUID and mouseTarget == 1 then
     r.ShowMessageBox("No fade to audition.", "Sorry", 0)
     return
   end
@@ -301,14 +307,14 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
 
   if mouseTarget == 1 then
   
-    mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex + 1])
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
     local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
     return neighborGUID
     
   elseif mouseTarget == 2 then
   
-    mediaItem = r.BR_GetMediaItemByGUID(0, laneItemsGUID[flaggedIndex - 1])
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
     local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
     return neighborGUID
