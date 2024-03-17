@@ -283,38 +283,6 @@ end
 
 -------------------------------------------------------
 
-function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, flaggedGUID_rx, muteState_rx)
-
-  local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
-  local flaggedGUID = flaggedGUID_rx
-  local muteState = muteState_rx
-
-  local tbl_mutedItems = {}
-
-  for i = 1, #tbl_mediaItemGUIDs do
-
-    if tbl_mediaItemGUIDs[i] ~= flaggedGUID then
-
-      local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[i])
-      for k = 1, #tbl_groupedItems do
-
-        local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
-        if mediaItem then
-
-          table.insert(tbl_mutedItems, tbl_groupedItems[k])
-          r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
-
-        end
-      end
-    end
-  end
-
-  return tbl_mutedItems
-
-end
-
--------------------------------------------------------
-
 function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExtend_rx, extendRestoreSwitch_rx)
 
   local tbl_itemGUID = {}
@@ -418,6 +386,43 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedT
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
   return bool_success, mediaItem, pri, extendRestoreSwitch
+
+end
+
+-------------------------------------------------------
+
+function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteState_rx)
+
+  local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
+  local tbl_safeItemsGUID = tbl_safeItemsGUID_rx
+  local muteState = muteState_rx
+
+  local tbl_mutedItems = {}
+
+  for h = 1, #tbl_mediaItemGUIDs do
+
+    for i = 1, #tbl_safeItemsGUID do
+
+      local safeGUID = tbl_safeItemsGUID[i]
+
+      if tbl_mediaItemGUIDs[h] ~= safeGUID then
+
+        local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[h])
+        for k = 1, #tbl_groupedItems do
+
+          local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
+          if mediaItem then
+
+            table.insert(tbl_mutedItems, tbl_groupedItems[k])
+            r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
+
+          end
+        end
+      end
+    end
+  end
+
+  return tbl_mutedItems
 
 end
 
