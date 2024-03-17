@@ -401,24 +401,27 @@ function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteStat
 
   for h = 1, #tbl_mediaItemGUIDs do
 
-    for i = 1, #tbl_safeItemsGUID do
+    local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[h])
 
-      local safeGUID = tbl_safeItemsGUID[i]
+    for k = 1, #tbl_groupedItems do
 
-      if tbl_mediaItemGUIDs[h] ~= safeGUID then
+      local bool_foundSafeItem = false
 
-        local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[h])
-        for k = 1, #tbl_groupedItems do
-
-          local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
-          if mediaItem then
-
-            table.insert(tbl_mutedItems, tbl_groupedItems[k])
-            r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
-
-          end
+      for i = 1, #tbl_safeItemsGUID do
+        if tbl_groupedItems[k] == tbl_safeItemsGUID[i] then
+          bool_foundSafeItem = true
+          break
         end
       end
+
+      if not bool_foundSafeItem then
+        local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
+        if mediaItem then
+          table.insert(tbl_mutedItems, tbl_groupedItems[k])
+          r.SetMediaItemInfo_Value(mediaItem, "B_MUTE", muteState)
+        end
+      end
+
     end
   end
 

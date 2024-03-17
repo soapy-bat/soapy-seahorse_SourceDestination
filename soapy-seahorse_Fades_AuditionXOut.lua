@@ -36,7 +36,7 @@ local bool_TransportAutoStop = true -- stops transport automatically after audit
 
 local r = reaper
 
-local itemGUID_temp
+local tbl_mutedItems = {}
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
@@ -52,11 +52,12 @@ function main()
   r.PreventUIRefresh(1)
 
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
+  local tbl_itemsToMute = so.GetAllItemsGUID()
+  local tbl_safeItems = so.GetGroupedItems(item2GUID)
 
   if bool_success then
 
-    so.ToggleItemMuteState(item1GUID, 1) -- 1 = extend, -1 = restore
-    itemGUID_temp = item1GUID
+    tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, tbl_safeItems, 1)
 
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
@@ -80,18 +81,12 @@ function CheckPlayState()
 
   local playState = r.GetPlayState()
 
-  local bool_success = false
   local bool_exit = false
     
   if playState == 0 then -- Transport is stopped
 
-    bool_success = so.ToggleItemMuteState(itemGUID_temp, -1)
+    so.ToggleItemMute(tbl_mutedItems, {}, 0)
     r.DeleteProjectMarker(0, 998, false)
-
-    if not bool_success then
-      r.ShowMessageBox("Mute state change unsuccessful.", "sorry!", 0)
-      return
-    end
 
     bool_exit = true
   end
