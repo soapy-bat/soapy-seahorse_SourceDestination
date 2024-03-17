@@ -52,6 +52,13 @@ function main()
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
   if bool_success then
+    
+    -- in case a new instance of an audition script has started before other scripts were able to complete
+    local tbl_safeItems1 = so.GetGroupedItems(item1GUID)
+    local tbl_safeItems2 = so.GetGroupedItems(item2GUID)
+    so.ToggleItemMute(tbl_safeItems1, {}, 0)
+    so.ToggleItemMute(tbl_safeItems2, {}, 0)
+
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
     CheckPlayState()
   else

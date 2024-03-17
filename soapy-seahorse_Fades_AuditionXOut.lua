@@ -52,10 +52,14 @@ function main()
   r.PreventUIRefresh(1)
 
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
-  local tbl_itemsToMute = so.GetAllItemsGUID()
-  local tbl_safeItems = so.GetGroupedItems(item2GUID)
 
   if bool_success then
+
+    local tbl_itemsToMute = so.GetAllItemsGUID()
+    local tbl_safeItems = so.GetGroupedItems(item2GUID)
+
+    -- in case a new instance of an audition script has started before other scripts were able to complete
+    so.ToggleItemMute(tbl_safeItems, {}, 0)
 
     tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, tbl_safeItems, 1)
 
