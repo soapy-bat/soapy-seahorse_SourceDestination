@@ -38,59 +38,103 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
   local cursorBias = cursorBias_rx
 
-  local mediaItem, itemStart, itemEnd
-  local distanceToStart, distanceToEnd
   local mouseTarget
-  local itemGUID = {}
-  for i = 1, 2 do
-    itemGUID[i] = "empty"
-  end
-
-  local mouseX
+  local tbl_itemGUID = {}
 
   -- mouseX and transport location are compatible
   
   -- Berücksichtigung der Position nur, wenn Maus auf Item ist
-  mediaItem, mouseX = r.BR_ItemAtMouseCursor()
+  local mediaItem, mouseX = r.BR_ItemAtMouseCursor()
+  if not mediaItem then return false end
   
-  if mediaItem then
+  local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+  local itemEnd = itemStart + r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
   
-    itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
-    itemEnd = itemStart + r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
-    
-    distanceToStart = math.abs(mouseX - itemStart)
-    distanceToEnd = math.abs(itemEnd - mouseX)
-    
-    if distanceToStart < distanceToEnd then
-      
-      -- mouse over 2nd item
+  local distanceToStart = math.abs(mouseX - itemStart)
+  local distanceToEnd = math.abs(itemEnd - mouseX)
 
-      itemGUID[2] = r.BR_GetMediaItemGUID(mediaItem)
-      mouseTarget = 2
-      itemGUID[1] = so.GetNeighbor(itemGUID[2], mouseTarget)
+  if distanceToStart > distanceToEnd then
 
-      bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
+    -- mouse over 1st item
 
-      return bool_success, itemGUID[1], itemGUID[2], mouseTarget
+    tbl_itemGUID[1] = r.BR_GetMediaItemGUID(mediaItem)
+    mouseTarget = 1
+    tbl_itemGUID[2] = so.GetNeighbor(tbl_itemGUID[1], mouseTarget)
 
-    else
+    bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
 
-      -- mouse over 1st item
-
-      itemGUID[1] = r.BR_GetMediaItemGUID(mediaItem)
-      mouseTarget = 1
-      itemGUID[2] = so.GetNeighbor(itemGUID[1], mouseTarget)
-
-      bool_success = so.SetEditCurPosCenterEdges(itemGUID[1], itemGUID[2], cursorBias)
-
-      return bool_success, itemGUID[1], itemGUID[2], mouseTarget
-
-    end
+    return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], mouseTarget
 
   else
-    bool_success = false
-    return bool_success
+
+    -- mouse over 2nd item
+
+    tbl_itemGUID[2] = r.BR_GetMediaItemGUID(mediaItem)
+    mouseTarget = 2
+    tbl_itemGUID[1] = so.GetNeighbor(tbl_itemGUID[2], mouseTarget)
+
+    bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
+
+    return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], mouseTarget
+
   end
+
+end
+
+-------------------------------------------------------
+
+function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
+
+  -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
+  local flaggedGUID = flaggedGUID_rx
+  local mouseTarget = mouseTarget_rx
+
+  local flaggedIndex
+
+  -- get array of items on fixed lane
+  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
+  if not tbl_laneItemsGUID then return end
+
+  -- get index of flagged item
+
+  for i = 0, #tbl_laneItemsGUID do
+
+    local GUID = tbl_laneItemsGUID[i]
+
+    if GUID == flaggedGUID then
+      flaggedIndex = i
+    end
+
+  end
+
+  if not flaggedIndex then
+    r.ShowMessageBox("Something went wrong: Index is nil", "Could not retrieve targeted item", 0)
+    return
+  end
+
+  if flaggedIndex == #tbl_laneItemsGUID and mouseTarget == 1 then
+    r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
+    return
+  end  
+
+  -- find neighbor
+
+  if mouseTarget == 1 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+    
+    return neighborGUID
+    
+  elseif mouseTarget == 2 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+    
+    return neighborGUID
+  
+  end
+
 end
 
 -------------------------------------------------------
@@ -187,62 +231,6 @@ function so.GetGroupedItems(itemGUID_rx)
 
 end
 
--------------------------------------------------------
-
-function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
-
-  -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
-  local flaggedGUID = flaggedGUID_rx
-  local mouseTarget = mouseTarget_rx
-
-  local flaggedIndex
-
-  -- get array of items on fixed lane
-  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
-  if not tbl_laneItemsGUID then return end
-
-  -- get index of flagged item
-
-  for i = 0, #tbl_laneItemsGUID do
-
-    local GUID = tbl_laneItemsGUID[i]
-
-    if GUID == flaggedGUID then
-      flaggedIndex = i
-    end
-
-  end
-
-  if flaggedIndex == #tbl_laneItemsGUID and mouseTarget == 1 then
-    r.ShowMessageBox("No fade to audition.", "Sorry", 0)
-    return
-  end
-
-  if not flaggedIndex then
-    r.ShowMessageBox("Something went wrong: Index is nil", "Sorry", 0)
-    return
-  end
-
-  -- find neighbor
-
-  if mouseTarget == 1 then
-  
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
-    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-    
-    return neighborGUID
-    
-  elseif mouseTarget == 2 then
-  
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
-    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-    
-    return neighborGUID
-  
-  end
-
-end
-
 ------------------------------------------------------
 -- functions: parameter manipulation (set / toggle) --
 ------------------------------------------------------
@@ -251,9 +239,9 @@ function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
 
   local bool_success = false
 
-  local itemGUID = {}
-  itemGUID[1] = item1GUID_rx
-  itemGUID[2] = item2GUID_rx
+  local tbl_itemGUID = {}
+  tbl_itemGUID[1] = item1GUID_rx
+  tbl_itemGUID[2] = item2GUID_rx
 
   local cursorBias = cursorBias_rx
 
@@ -262,7 +250,7 @@ function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
   local itemEnd = {}
 
   for i = 1, 2 do
-    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
+    mediaItem[i] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[i])
     if mediaItem[i] then
       itemStart[i] = r.GetMediaItemInfo_Value(mediaItem[i], "D_POSITION")
       itemEnd[i] = itemStart[i] + r.GetMediaItemInfo_Value(mediaItem[i], "D_LENGTH")
@@ -329,16 +317,16 @@ end
 
 function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExtend_rx, extendRestoreSwitch_rx)
 
-  local itemGUID = {}
-  itemGUID[1] = item1GUID_rx
-  itemGUID[2] = item2GUID_rx
+  local tbl_itemGUID = {}
+  tbl_itemGUID[1] = item1GUID_rx
+  tbl_itemGUID[2] = item2GUID_rx
 
   local extendedTime = extendedTime_rx
   local itemToExtend = itemToExtend_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see so.LenghtenItem)
 
-  item1GUID_temp = itemGUID[1]
-  item2GUID_temp = itemGUID[2]
+  item1GUID_temp = tbl_itemGUID[1]
+  item2GUID_temp = tbl_itemGUID[2]
   extendedTime_temp = extendedTime
 
   local bool_success = false
@@ -360,7 +348,7 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
 
   -- ###### lenghten primary item ###### --
 
-  mediaItem[pri] = r.BR_GetMediaItemByGUID(0, itemGUID[pri])
+  mediaItem[pri] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[pri])
 
   if mediaItem[pri] then
     bool_success = so.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, extendedTime)
@@ -368,15 +356,15 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
   
   -- ###### mute secondary item ###### --
 
-  mediaItem[sec] = r.BR_GetMediaItemByGUID(0, itemGUID[sec])
+  mediaItem[sec] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[sec])
   
   if mediaItem[sec] then
-    bool_success = so.ToggleItemMuteState(itemGUID[sec],extendRestoreSwitch)
+    bool_success = so.ToggleItemMuteState(tbl_itemGUID[sec],extendRestoreSwitch)
   end
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
-  return bool_success, itemGUID[1], itemGUID[2], extendedTime, itemToExtend
+  return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], extendedTime, itemToExtend
 
 end
 
