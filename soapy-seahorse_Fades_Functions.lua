@@ -293,12 +293,6 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
   local itemToExtend = itemToExtend_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see so.LenghtenItem)
 
-  item1GUID_temp = tbl_itemGUID[1]
-  item2GUID_temp = tbl_itemGUID[2]
-  extendedTime_temp = extendedTime
-
-  local bool_success = false
-
   local mediaItem = {}
   local itemStart = {}
   local itemEnd = {}
@@ -324,15 +318,19 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
   
   -- ###### mute secondary item ###### --
 
-  mediaItem[sec] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[sec])
-  
-  if mediaItem[sec] then
-    bool_success = so.ToggleItemMuteState(tbl_itemGUID[sec],extendRestoreSwitch)
+  local itemsToMute = so.GetAllItemsGUID()
+  local safeItems = so.GetGroupedItems(tbl_itemGUID[pri])
+  local muteState = extendRestoreSwitch
+
+  if muteState == -1 then
+    muteState = 0
   end
+
+  local mutedItems = so.ToggleItemMute(itemsToMute, safeItems, muteState)
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
-  return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], extendedTime, itemToExtend
+  return tbl_itemGUID[1], tbl_itemGUID[2], extendedTime, itemToExtend, mutedItems
 
 end
 
