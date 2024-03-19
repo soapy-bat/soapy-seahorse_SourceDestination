@@ -29,6 +29,7 @@ local preRoll = 2                   -- audition pre-roll, in seconds
 local postRoll = 0                  -- audition post-roll, in seconds
 local cursorBias = 2                -- 0, ..., 2 /// 1: center of fade
 local bool_TransportAutoStop = true -- stops transport automatically after auditioning
+local bool_RemoveFade = true        -- auditions without the fade
 
 ---------------
 -- variables --
@@ -37,6 +38,8 @@ local bool_TransportAutoStop = true -- stops transport automatically after audit
 local r = reaper
 
 local tbl_mutedItems = {}
+local auditioningItems = {}
+local fadeLen, fadeLenAuto, fadeDir, fadeShape
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
@@ -54,6 +57,17 @@ function main()
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
    
   if bool_success then
+
+    if bool_RemoveFade then
+
+      auditioningItems = so.GetGroupedItems(item1GUID)
+      fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = so.GetFade(item1GUID, 1)
+
+      for i = 1, #auditioningItems do
+        so.SetFade(auditioningItems[i], 1, 0, 0, 0, 0)
+      end
+
+    end
 
     local tbl_itemsToMute = so.GetAllItemsGUID()
     local tbl_safeItems = so.GetGroupedItems(item1GUID)
@@ -91,6 +105,12 @@ function CheckPlayState()
 
     so.ToggleItemMute(tbl_mutedItems, {}, 0)
     r.DeleteProjectMarker(0, 998, false)
+
+    if bool_RemoveFade then
+      for i = 1, #auditioningItems do
+        so.SetFade(auditioningItems[i], 1, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+      end
+    end
 
     bool_exit = true
   end

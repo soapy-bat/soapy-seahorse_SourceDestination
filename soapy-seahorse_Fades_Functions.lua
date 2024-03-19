@@ -283,13 +283,13 @@ end
 
 -------------------------------------------------------
 
-function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExtend_rx, extendRestoreSwitch_rx)
+function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx)
 
   local tbl_itemGUID = {}
   tbl_itemGUID[1] = item1GUID_rx
   tbl_itemGUID[2] = item2GUID_rx
 
-  local extendedTime = extendedTime_rx
+  local timeAmount = timeAmount_rx
   local itemToExtend = itemToExtend_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see so.LenghtenItem)
 
@@ -313,7 +313,7 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
   mediaItem[pri] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[pri])
 
   if mediaItem[pri] then
-    bool_success = so.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, extendedTime)
+    bool_success = so.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, timeAmount)
   end
   
   -- ###### mute secondary item ###### --
@@ -330,20 +330,20 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, extendedTime_rx, itemToExte
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
-  return tbl_itemGUID[1], tbl_itemGUID[2], extendedTime, itemToExtend, mutedItems
+  return tbl_itemGUID[1], tbl_itemGUID[2], timeAmount, itemToExtend, mutedItems
 
 end
 
 -------------------------------------------------------
 
-function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedTime_rx)
+function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmount_rx)
 
   -- function assumes all items in group to be at the same length and position
 
   local mediaItem = mediaItem_rx
   local pri = pri_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx
-  local extendedTime = extendedTime_rx
+  local timeAmount = timeAmount_rx
 
   local bool_success = false
 
@@ -358,7 +358,7 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedT
   -- the magic happens here
   if pri == 1 then
 
-    local newEnd = itemEnd + (extendedTime * extendRestoreSwitch)
+    local newEnd = itemEnd + (timeAmount * extendRestoreSwitch)
   
     for t = 0, r.CountSelectedMediaItems(0) - 1 do
       local currentItem = r.GetSelectedMediaItem(0, t)
@@ -370,7 +370,7 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extendedT
   -- ...and here
   elseif pri == 2 then
 
-    local newStart = itemStart - (extendedTime * extendRestoreSwitch)
+    local newStart = itemStart - (timeAmount * extendRestoreSwitch)
   
     for t = 0, r.CountSelectedMediaItems(0) - 1 do
       local currentItem = r.GetSelectedMediaItem(0, t)
@@ -503,7 +503,9 @@ function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
 
 end
 
--------------------------------------------------------
+--------------------------------------------------
+-- functions: peanuts (small get / set helpers) --
+--------------------------------------------------
 
 function so.SaveEditStates()
 
@@ -533,70 +535,78 @@ function so.RestoreEditStates(rippleStateAll, rippleStatePer)
 
 end
 
---------------------------
--- deprecated functions --
---------------------------
+-------------------------------------------------------
 
-function so.GetNeighbor_old(flaggedGUID_rx, mouseTarget_rx)
+function so.GetFade(itemGUID_rx, inOrOut_rx)
 
-  local mouseTarget = mouseTarget_rx
-  local flaggedGUID = flaggedGUID_rx
-  local mediaItemGUID, neighborGUID
+  local itemGUID = itemGUID_rx
+  local inOrOut = inOrOut_rx
 
-  local workingLane = 0
-  
-  -- script is not taking into account lane show / hide state!
-  -- solution: check neighbor using lane number.
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-  
-  local numSelectedItems = r.CountSelectedMediaItems(0)
-  
-  for i = 0, numSelectedItems - 1 do
-  
-    local mediaItem = r.GetSelectedMediaItem(0, i)
-    local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE") -- great starting point, but it happens in the wrong place
-    
-    if mediaItem then
-    
-      mediaItemGUID = r.BR_GetMediaItemGUID(mediaItem)
-      
-      if mediaItemGUID == flaggedGUID and itemLane == workingLane then
-      
-        if mouseTarget == 1 then
+  local fadeLen, fadeLenAuto, fadeDir, fadeShape
 
-          local nextItem = i+1
-        
-          mediaItem = r.GetSelectedMediaItem(0, nextItem)
-          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return end
 
-          r.Main_OnCommand(40289, 0) -- Deselect all items
-          
-          return neighborGUID
-          
-        elseif mouseTarget == 2 then
+  if inOrOut == 2 then
 
-          local prevItem = i-1
-        
-          mediaItem = r.GetSelectedMediaItem(0, prevItem)
-          neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-          
-          r.Main_OnCommand(40289, 0) -- Deselect all items
+    -- looking for fade IN
+    fadeLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
+    fadeLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
+    fadeDir = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINDIR")
+    fadeShape = r.GetMediaItemInfo_Value(mediaItem, "C_FADEINSHAPE")
 
-          return neighborGUID
-        
-        end
-      end
-    end
+  elseif inOrOut == 1 then
+
+    -- looking for fade OUT
+    fadeLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
+    fadeLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
+    fadeDir = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTDIR")
+    fadeShape = r.GetMediaItemInfo_Value(mediaItem, "C_FADEOUTSHAPE")
+
   end
 
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.UpdateArrange()
+  return fadeLen, fadeLenAuto, fadeDir, fadeShape, inOrOut
 
 end
 
 -------------------------------------------------------
+
+function so.SetFade(itemGUID_rx, inOrOut_rx, fadeLen_rx, fadeLenAuto_rx, fadeDir_rx, fadeShape_rx)
+
+  local itemGUID = itemGUID_rx
+  local inOrOut = inOrOut_rx
+
+  local fadeLen = fadeLen_rx
+  local fadeLenAuto = fadeLenAuto_rx
+  local fadeDir = fadeDir_rx
+  local fadeShape = fadeShape_rx
+
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return end
+
+  if inOrOut == 2 then
+
+    -- set fade IN
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEINLEN", fadeLen)
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO", fadeLenAuto)
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEINDIR", fadeDir)
+    r.SetMediaItemInfo_Value(mediaItem, "C_FADEINSHAPE", fadeShape)
+
+  elseif inOrOut == 1 then
+
+    -- set fade OUT
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN", fadeLen)
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO", fadeLenAuto)
+    r.SetMediaItemInfo_Value(mediaItem, "D_FADEOUTDIR", fadeDir)
+    r.SetMediaItemInfo_Value(mediaItem, "C_FADEOUTSHAPE", fadeShape)
+
+  end
+
+end
+
+--------------------------
+-- deprecated functions --
+--------------------------
 
 function so.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
 

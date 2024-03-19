@@ -27,7 +27,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 local preRoll = 2                   -- audition pre-roll, in seconds
 local postRoll = 2                  -- audition post-roll, in seconds
-local extendedTime = 2              -- time that the items get extended by, in seconds
+local timeAmount = 2                -- time that the items get extended by, in seconds
 local cursorBias = 1.5              -- 0, ..., 2 /// 1: center of fade
 local bool_TransportAutoStop = true -- stops transport automatically after auditioning
 
@@ -41,7 +41,7 @@ local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
 local so = require("soapy-seahorse_Fades_Functions")
 
-local item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp
+local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
 
 local tbl_mutedItems = {}
 
@@ -64,7 +64,7 @@ function main()
 
     rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
 
-    item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, extendedTime, targetItem, 1)
+    item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
 
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
@@ -93,7 +93,7 @@ function CheckPlayState()
   if playState == 0 then -- Transport is stopped
 
     -- next two calls are quite unelegant. itemExtender should be able to do it all. or split it up...
-    so.ItemExtender(item1GUID_temp, item2GUID_temp, extendedTime_temp, targetItem_temp, -1)
+    so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1)
     so.ToggleItemMute(tbl_mutedItems, {}, 0)
 
     r.DeleteProjectMarker(0, 998, false)
