@@ -29,12 +29,17 @@ local preRoll = 2                   -- audition pre-roll, in seconds
 local postRoll = 2                  -- audition post-roll, in seconds
 local cursorBias = 1                -- 0, ..., 2 /// 1: center of fade
 local bool_TransportAutoStop = true -- stops transport automatically after auditioning
+local bool_RemoveFade = false       -- experimental: auditions without the fade
 
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
+
+local auditioningItems1, auditioningItems2 = {}
+local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
+local fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
@@ -52,6 +57,20 @@ function main()
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
   if bool_success then
+
+    if bool_RemoveFade then
+
+      auditioningItems1 = so.GetGroupedItems(item1GUID)
+      auditioningItems2 = so.GetGroupedItems(item2GUID)
+      fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1, _ = so.GetFade(item1GUID, 1)
+      fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2, _ = so.GetFade(item2GUID, 2)
+
+      for i = 1, #auditioningItems1 do
+        so.SetFade(auditioningItems1[i], 1, 0, 0, 0, 0)
+        so.SetFade(auditioningItems2[i], 2, 0, 0, 0, 0)
+      end
+
+    end
     
     -- in case a new instance of an audition script has started before other scripts were able to complete
     local tbl_safeItems1 = so.GetGroupedItems(item1GUID)
@@ -85,6 +104,13 @@ function CheckPlayState()
   if playState == 0 then -- Transport is stopped
 
     r.DeleteProjectMarker(0, 998, false)
+
+    if bool_RemoveFade then
+      for i = 1, #auditioningItems1 do
+        so.SetFade(auditioningItems1[i], 1, fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1)
+        so.SetFade(auditioningItems2[i], 2, fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2)
+      end
+    end
 
     bool_exit = true
   end
