@@ -29,7 +29,7 @@ local preRoll = 2                   -- audition pre-roll, in seconds
 local postRoll = 0                  -- audition post-roll, in seconds
 local cursorBias = 2                -- 0, ..., 2 /// 1: center of fade
 local bool_TransportAutoStop = true -- stops transport automatically after auditioning
-local bool_RemoveFade = true        -- auditions without the fade
+local bool_RemoveFade = false       -- auditions without the fade
 
 ---------------
 -- variables --
