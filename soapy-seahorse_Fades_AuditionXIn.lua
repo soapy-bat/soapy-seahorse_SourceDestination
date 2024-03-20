@@ -54,6 +54,8 @@ function main()
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
+  r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
    
   if bool_success then
@@ -69,12 +71,12 @@ function main()
 
     end
 
-    local tbl_itemsToMute = so.GetAllItemsGUID()
-    local tbl_safeItems = so.GetGroupedItems(item1GUID)
+    local _, tbl_itemsToMute = so.GetNeighbors(item1GUID, 1, 1)
+    local tbl_safeItems = {} -- before: so.GetGroupedItems(item1GUID)
 
     -- in case a new instance of an audition script has started before other scripts were able to complete
     so.ToggleItemMute(tbl_safeItems, {}, 0)
-    
+
     tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, tbl_safeItems, 1)
     
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
@@ -85,8 +87,6 @@ function main()
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
   end 
 
-  r.PreventUIRefresh(-1)
-  r.UpdateArrange()
   r.Undo_EndBlock("Audition X In", 0)
 
 end
@@ -96,6 +96,8 @@ end
 ---------------
 
 function CheckPlayState()
+
+  r.PreventUIRefresh(1)
 
   local playState = r.GetPlayState()
 
@@ -111,6 +113,9 @@ function CheckPlayState()
         so.SetFade(auditioningItems[i], 1, fadeLen, fadeLenAuto, fadeDir, fadeShape)
       end
     end
+
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
 
     bool_exit = true
   end

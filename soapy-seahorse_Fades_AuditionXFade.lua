@@ -54,6 +54,8 @@ function main()
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
+  r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
   if bool_success then

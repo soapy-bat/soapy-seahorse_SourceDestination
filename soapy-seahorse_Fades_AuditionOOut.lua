@@ -58,6 +58,8 @@ function main()
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
+  r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
   local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
   if bool_success then
@@ -74,8 +76,6 @@ function main()
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
   end
 
-  r.PreventUIRefresh(-1)
-  r.UpdateArrange()
   r.Undo_EndBlock("Audition Original Out", 0)
 
 end
@@ -85,6 +85,8 @@ end
 ---------------
 
 function CheckPlayState()
+
+  r.PreventUIRefresh(1)
 
   local playState = r.GetPlayState()
 
@@ -99,6 +101,9 @@ function CheckPlayState()
     r.DeleteProjectMarker(0, 998, false)
 
     so.RestoreEditStates(rippleStateAll, rippleStatePer)
+
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
 
     bool_exit = true
   end

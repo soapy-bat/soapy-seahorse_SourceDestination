@@ -59,7 +59,11 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
     tbl_itemGUID[1] = r.BR_GetMediaItemGUID(mediaItem)
     mouseTarget = 1
-    tbl_itemGUID[2] = so.GetNeighbor(tbl_itemGUID[1], mouseTarget)
+    tbl_itemGUID[2], _ = so.GetNeighbors(tbl_itemGUID[1], mouseTarget, 1)
+
+    if tbl_itemGUID[1] == tbl_itemGUID[2] then
+      r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
+    end
 
     bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
 
@@ -71,7 +75,11 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
     tbl_itemGUID[2] = r.BR_GetMediaItemGUID(mediaItem)
     mouseTarget = 2
-    tbl_itemGUID[1] = so.GetNeighbor(tbl_itemGUID[2], mouseTarget)
+    tbl_itemGUID[1], _ = so.GetNeighbors(tbl_itemGUID[2], mouseTarget, 1)
+
+    if tbl_itemGUID[1] == tbl_itemGUID[2] then
+      r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
+    end
 
     bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
 
@@ -83,15 +91,19 @@ end
 
 -------------------------------------------------------
 
-function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
+function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
-  -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
+  -- audition target tells us if the flagged item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
-  local mouseTarget = mouseTarget_rx
+  local auditionTarget = auditionTarget_rx
+  local range = range_rx
 
-  local flaggedIndex
+  local flaggedIndex, neighborGUID
+
+  local tbl_neighborGUID = {}
 
   -- get array of items on fixed lane
+
   local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
   if not tbl_laneItemsGUID then return end
 
@@ -112,28 +124,25 @@ function so.GetNeighbor(flaggedGUID_rx, mouseTarget_rx)
     return
   end
 
-  if flaggedIndex == #tbl_laneItemsGUID and mouseTarget == 1 then
-    r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
-    return
+  -- if item is the last item in the lane, return input
+  if flaggedIndex == #tbl_laneItemsGUID and auditionTarget == 1 then
+    return flaggedGUID
   end  
 
   -- find neighbor
 
-  if mouseTarget == 1 then
-  
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
-    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-    
-    return neighborGUID
-    
-  elseif mouseTarget == 2 then
-  
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
-    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
-    
-    return neighborGUID
-  
+  -- map value of 1 or 2 to value of 1 or (-1)
+  auditionTarget = ((auditionTarget * 2) - 3) * (-1)
+
+  for i = 1, range do
+
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + (i * auditionTarget)])
+    neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+    table.insert(tbl_neighborGUID, r.BR_GetMediaItemGUID(mediaItem))
+
   end
+  
+  return neighborGUID, tbl_neighborGUID
 
 end
 
@@ -176,6 +185,38 @@ end
 
 -------------------------------------------------------
 
+function so.GetItemsOnTrack(flaggedGUID_rx)
+
+  local flaggedGUID = flaggedGUID_rx
+
+  -- get media track and fixed lane of flagged item
+  local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
+  if not flaggedItem then return end
+
+  local mediaTrack = r.GetMediaItem_Track(flaggedItem)
+  if not mediaTrack then return end
+
+  local itemCount = r.CountTrackMediaItems(mediaTrack)
+
+  local tbl_trackItemsGUID = {}
+
+  for i = 0, itemCount - 1 do
+
+    local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
+    if mediaItem then
+
+      local newGUID = r.BR_GetMediaItemGUID(mediaItem)
+      table.insert(tbl_trackItemsGUID, newGUID)
+
+    end
+  end
+
+  return tbl_trackItemsGUID
+
+end
+
+-------------------------------------------------------
+
 function so.GetAllItemsGUID()
 
   local itemCount = r.CountMediaItems(0)
@@ -201,31 +242,35 @@ end
 -------------------------------------------------------
 
 function so.GetGroupedItems(itemGUID_rx)
+-- working with select states is more efficient in this case but causes the items to flicker
 
   local itemGUID = itemGUID_rx
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return end
 
   local tbl_groupedItemsGUID = {}
 
-  local groupID = r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID")
-  if groupID ~= 0 then
+  r.Main_OnCommand(40289, 0) -- Deselect all items
 
-    local tbl_allItemsGUID = so.GetAllItemsGUID()
+  r.SetMediaItemSelected(mediaItem, true)
 
-    for i = 1, #tbl_allItemsGUID do
+  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in group
 
-      local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_allItemsGUID[i])
+  local numSelectedItems = r.CountSelectedMediaItems(0)
 
-      if mediaItem then
+  for i = 0, numSelectedItems - 1 do
 
-        if r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID") == groupID then
-          -- table.insert indexes from 1, not from 0 (lua convention)
-          table.insert(tbl_groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
-        end
+    local mediaItem = r.GetSelectedMediaItem(0, i)
 
-      end
+    if mediaItem then
+
+      -- table.insert indexes from 1, not from 0 (lua convention)
+      table.insert(tbl_groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
+      
     end
   end
+
+  r.Main_OnCommand(40289, 0) -- Deselect all items
 
   return tbl_groupedItemsGUID
 
@@ -318,8 +363,8 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
   
   -- ###### mute secondary item ###### --
 
-  local itemsToMute = so.GetAllItemsGUID()
-  local safeItems = so.GetGroupedItems(tbl_itemGUID[pri])
+  local _, itemsToMute = so.GetNeighbors(tbl_itemGUID[pri], pri, 2)
+  local safeItems = {} -- before: so.GetGroupedItems(tbl_itemGUID[pri])
   local muteState = extendRestoreSwitch
 
   if muteState == -1 then
@@ -405,12 +450,12 @@ function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteStat
 
       local bool_foundSafeItem = false
 
-      for i = 1, #tbl_safeItemsGUID do
-        if tbl_groupedItems[k] == tbl_safeItemsGUID[i] then
-          bool_foundSafeItem = true
-          break
-        end
-      end
+      -- for i = 1, #tbl_safeItemsGUID do
+      --   if tbl_groupedItems[k] == tbl_safeItemsGUID[i] then
+      --     bool_foundSafeItem = true
+      --     break
+      --   end
+      -- end
 
       if not bool_foundSafeItem then
         local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_groupedItems[k])
@@ -424,48 +469,6 @@ function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteStat
   end
 
   return tbl_mutedItems
-
-end
-
--------------------------------------------------------
-
-function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
-
-  -- if item is in target lane
-  -- and if item has start point before / after target item
-  -- and if mediaitem
-  -- then mute
-
-  local itemGUID = itemGUID_rx
-  local extendRestoreSwitch = extendRestoreSwitch_rx
-
-  local bool_success = false
-
-  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
-  if not mediaItem then return end
-
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.SetMediaItemSelected(mediaItem, 1)
-  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-  local muteState
-
-  if extendRestoreSwitch == 1 then
-    muteState = 1
-  elseif extendRestoreSwitch == -1 then
-    muteState = 0
-  end
-
-  for g = 0, r.CountSelectedMediaItems(0) - 1 do
-    local currentItem = r.GetSelectedMediaItem(0, g)
-    r.SetMediaItemInfo_Value(currentItem, "B_MUTE", muteState)
-  end
-
-  bool_success = true
-
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-
-  return bool_success, itemGUID, extendRestoreSwitch
 
 end
 
@@ -645,6 +648,138 @@ function so.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
 
     r.SetEditCurPos(newCurPos, false, false)
 
+  end
+
+end
+
+-------------------------------------------------------
+
+function so.GetGroupedItems2(itemGUID_rx) -- warning: inefficient!
+
+  local itemGUID = itemGUID_rx
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+
+  local tbl_groupedItemsGUID = {}
+
+  local groupID = r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID")
+  if groupID ~= 0 then
+
+    local tbl_allItemsGUID = so.GetAllItemsGUID()
+
+    for i = 1, #tbl_allItemsGUID do
+
+      local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_allItemsGUID[i])
+
+      if mediaItem then
+
+        if r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID") == groupID then
+          -- table.insert indexes from 1, not from 0 (lua convention)
+          table.insert(tbl_groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
+        end
+
+      end
+    end
+  end
+
+  return tbl_groupedItemsGUID
+
+end
+
+-------------------------------------------------------
+
+function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
+
+  -- if item is in target lane
+  -- and if item has start point before / after target item
+  -- and if mediaitem
+  -- then mute
+
+  local itemGUID = itemGUID_rx
+  local extendRestoreSwitch = extendRestoreSwitch_rx
+
+  local bool_success = false
+
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return end
+
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+  r.SetMediaItemSelected(mediaItem, 1)
+  r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+  local muteState
+
+  if extendRestoreSwitch == 1 then
+    muteState = 1
+  elseif extendRestoreSwitch == -1 then
+    muteState = 0
+  end
+
+  for g = 0, r.CountSelectedMediaItems(0) - 1 do
+    local currentItem = r.GetSelectedMediaItem(0, g)
+    r.SetMediaItemInfo_Value(currentItem, "B_MUTE", muteState)
+  end
+
+  bool_success = true
+
+  r.Main_OnCommand(40289, 0) -- Deselect all items
+
+  return bool_success, itemGUID, extendRestoreSwitch
+
+end
+
+-------------------------------------------------------
+
+function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
+
+  -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
+  local flaggedGUID = flaggedGUID_rx
+  local mouseTarget = mouseTarget_rx
+
+  local flaggedIndex
+
+  -- get array of items on fixed lane
+
+  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
+  if not tbl_laneItemsGUID then return end
+
+  -- get index of flagged item
+
+  for i = 0, #tbl_laneItemsGUID do
+
+    local GUID = tbl_laneItemsGUID[i]
+
+    if GUID == flaggedGUID then
+      flaggedIndex = i
+    end
+
+  end
+
+  if not flaggedIndex then
+    r.ShowMessageBox("Something went wrong: Index is nil", "Could not retrieve targeted item", 0)
+    return
+  end
+
+  -- if item is the last item in the lane, return input
+  if flaggedIndex == #tbl_laneItemsGUID and mouseTarget == 1 then
+    return flaggedGUID
+  end  
+
+  -- find neighbor
+
+  if mouseTarget == 1 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+    
+    return neighborGUID
+    
+  elseif mouseTarget == 2 then
+  
+    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
+    local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
+    
+    return neighborGUID
+  
   end
 
 end

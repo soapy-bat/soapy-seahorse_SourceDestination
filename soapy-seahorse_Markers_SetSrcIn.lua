@@ -32,39 +32,37 @@ local markerColor = r.ColorToNative(255,0,0)
 
 function CreateSyncMarker()
 
-  local numSelectedItems = r.CountSelectedMediaItems(0)
+    local numSelectedItems = r.CountSelectedMediaItems(0)
   
-   -- Iterate through selected items
-   for i = 0, numSelectedItems - 1 do
+    -- Iterate through selected items
+    for i = 0, numSelectedItems - 1 do
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
+        if not mediaItem then return end
 
-        if mediaItem then
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-
-            if activeTake then
-                -- Remove existing MarkerLabel markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == markerLabel then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                end
-
-                -- Get the relative cursor position within the active take, even when the playhead is moving
-                local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-                local takeStartPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
-                local cursorPosInTake = cursorPos - takeStartPos + r.GetMediaItemTakeInfo_Value(activeTake, "D_STARTOFFS")
-
-
-                -- Add a take marker at the cursor position
-                r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor|0x1000000)
-
+        -- Get the active take
+        local activeTake = r.GetActiveTake(mediaItem)
+        if not activeTake then return end
+        
+        -- Remove existing MarkerLabel markers
+        local numMarkers = r.GetNumTakeMarkers(activeTake)
+        for i = numMarkers, 0, -1 do
+            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+            if markerType == markerLabel then
+                r.DeleteTakeMarker(activeTake, i)
             end
         end
+
+        -- Get the relative cursor position within the active take, even when the playhead is moving
+        local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
+        local takeStartPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+        local cursorPosInTake = cursorPos - takeStartPos + r.GetMediaItemTakeInfo_Value(activeTake, "D_STARTOFFS")
+
+
+        -- Add a take marker at the cursor position
+        r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor|0x1000000)
+        
     end
 end
 
