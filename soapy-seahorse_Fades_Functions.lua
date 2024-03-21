@@ -87,7 +87,6 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
   local range = range_rx
 
   local flaggedIndex, neighborGUID
-
   local tbl_neighborGUID = {}
 
   -- get array of items on fixed lane
@@ -99,9 +98,7 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   for i = 0, #tbl_laneItemsGUID do
 
-    local GUID = tbl_laneItemsGUID[i]
-
-    if GUID == flaggedGUID then
+    if tbl_laneItemsGUID[i] == flaggedGUID then
       flaggedIndex = i
     end
 
@@ -115,9 +112,19 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
   -- if item is the last item in the lane, return input
   if flaggedIndex == #tbl_laneItemsGUID and auditionTarget == 1 then
     return flaggedGUID
-  end  
+  end
 
-  -- find neighbor
+  -- if item is the second to last item in the lane and looking for neighbors to the right, adapt range
+  if flaggedIndex == #tbl_laneItemsGUID - 1 and auditionTarget == 1 then
+    range = 1
+  end
+
+  -- if item is the second item in the lane and looking for neighbors to the left, adapt range
+  if flaggedIndex == 2 and auditionTarget == 2 then
+    range = 1
+  end
+
+  -- find neighbor:
 
   -- map value of 1 or 2 to value of 1 or (-1)
   auditionTarget = ((auditionTarget * 2) - 3) * (-1)
