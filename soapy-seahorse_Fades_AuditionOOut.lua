@@ -66,6 +66,10 @@ function main()
 
     rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
 
+    -- in case a new instance of an audition script has started before other scripts were able to complete
+    -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+    so.ToggleItemMute({item2GUID}, {}, 0)
+
     item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
 
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)

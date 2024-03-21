@@ -68,6 +68,7 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
   if tbl_itemGUID[1] == tbl_itemGUID[2] then
     r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
+    return
   end
 
   bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)

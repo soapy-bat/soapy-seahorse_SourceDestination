@@ -72,12 +72,13 @@ function main()
     end
 
     local _, tbl_itemsToMute = so.GetNeighbors(item2GUID, 2, 1)
-    local tbl_safeItems = {} -- before: so.GetGroupedItems(item2GUID)
 
     -- in case a new instance of an audition script has started before other scripts were able to complete
-    so.ToggleItemMute(tbl_safeItems, {}, 0)
+    -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+    so.ToggleItemMute({item2GUID}, {}, 0)
 
-    tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, tbl_safeItems, 1)
+    -- no need to pass along safe items:
+    tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, {}, 1)
 
     so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
