@@ -94,9 +94,7 @@ function CheckPlayState()
     
   if playState == 0 then -- Transport is stopped
 
-    -- next two calls are quite unelegant. itemExtender should be able to do it all. or split it up...
-    so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1)
-    so.ToggleItemMute(tbl_mutedItems, {}, 0)
+    so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
 
     r.DeleteProjectMarker(0, 998, false)
 

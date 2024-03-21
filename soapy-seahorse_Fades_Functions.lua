@@ -6,8 +6,7 @@ This file is part of the soapy-seahorse package.
 It is required by the various audition scripts.
 
 (C) 2024 the soapy zoo
-copyleft: chmaha
-thanks: fricia, X-Raym, GPT3.5
+thanks: chmaha, fricia, X-Raym, GPT3.5
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -92,7 +91,7 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   -- get array of items on fixed lane
 
-  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
+  local tbl_laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
   if not tbl_laneItemsGUID then return end
 
   -- get index of flagged item
@@ -136,7 +135,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetItemsOnSameLane(flaggedGUID_rx)
+function so.GetItemsOnLane(flaggedGUID_rx)
 
   local flaggedGUID = flaggedGUID_rx
 
@@ -200,30 +199,6 @@ function so.GetItemsOnTrack(flaggedGUID_rx)
   end
 
   return tbl_trackItemsGUID
-
-end
-
--------------------------------------------------------
-
-function so.GetAllItemsGUID()
-
-  local itemCount = r.CountMediaItems(0)
-  local tbl_projectItemsGUID = {}
-
-  for i = 0, itemCount - 1 do
-
-    local mediaItem = r.GetMediaItem(0, i)
-    if mediaItem then
-      local itemGUID = r.BR_GetMediaItemGUID(mediaItem)
-      if itemGUID then
-
-        table.insert(tbl_projectItemsGUID, itemGUID)
-
-      end
-    end
-  end
-
-  return tbl_projectItemsGUID
 
 end
 
@@ -316,7 +291,7 @@ end
 
 -------------------------------------------------------
 
-function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx)
+function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx, tbl_mutedItems_rx)
 
   local tbl_itemGUID = {}
   tbl_itemGUID[1] = item1GUID_rx
@@ -325,6 +300,7 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
   local timeAmount = timeAmount_rx
   local itemToExtend = itemToExtend_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see so.LenghtenItem)
+  local tbl_mutedItems = tbl_mutedItems_rx
 
   local mediaItem = {}
   local itemStart = {}
@@ -343,15 +319,17 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
 
   -- ###### mute secondary item ###### --
 
-  local _, itemsToMute = so.GetNeighbors(tbl_itemGUID[pri], pri, 2)
-  local safeItems = {} -- before: so.GetGroupedItems(tbl_itemGUID[pri])
   local muteState = extendRestoreSwitch
+  local itemsToMute
 
   if muteState == -1 then
     muteState = 0
+    itemsToMute = tbl_mutedItems
+  elseif muteState == 1 then
+    _, itemsToMute = so.GetNeighbors(tbl_itemGUID[pri], pri, 2)
   end
 
-  local mutedItems = so.ToggleItemMute(itemsToMute, safeItems, muteState)
+  tbl_mutedItems = so.ToggleItemMute(itemsToMute, {}, muteState)
 
   -- ###### lenghten primary item ###### --
 
@@ -361,7 +339,7 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
     so.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, timeAmount)
   end
   
-  return tbl_itemGUID[1], tbl_itemGUID[2], timeAmount, itemToExtend, mutedItems
+  return tbl_itemGUID[1], tbl_itemGUID[2], timeAmount, itemToExtend, tbl_mutedItems
 
 end
 
@@ -500,6 +478,9 @@ function so.SaveEditStates()
 
   local saveXFadeCommand = r.NamedCommandLookup("_SWS_SAVEXFD")
   r.Main_OnCommand(saveXFadeCommand, 1) -- SWS: Save auto crossfade state
+
+  local xFadeOffCommand = r.NamedCommandLookup("_SWS_XFDOFF")
+  r.Main_OnCommand(xFadeOffCommand, 0) -- SWS: Set auto crossfade off
 
   local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
   local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
@@ -725,7 +706,7 @@ function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
 
   -- get array of items on fixed lane
 
-  local tbl_laneItemsGUID = so.GetItemsOnSameLane(flaggedGUID)
+  local tbl_laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
   if not tbl_laneItemsGUID then return end
 
   -- get index of flagged item
@@ -767,6 +748,30 @@ function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
     return neighborGUID
   
   end
+
+end
+
+-------------------------------------------------------
+
+function so.GetAllItemsGUID()
+
+  local itemCount = r.CountMediaItems(0)
+  local tbl_projectItemsGUID = {}
+
+  for i = 0, itemCount - 1 do
+
+    local mediaItem = r.GetMediaItem(0, i)
+    if mediaItem then
+      local itemGUID = r.BR_GetMediaItemGUID(mediaItem)
+      if itemGUID then
+
+        table.insert(tbl_projectItemsGUID, itemGUID)
+
+      end
+    end
+  end
+
+  return tbl_projectItemsGUID
 
 end
 
