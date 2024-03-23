@@ -18,6 +18,13 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
+-------------------
+-- user settings --
+-------------------
+
+local bool_TargetItemUnderMouse = false        -- select item under mouse (no click to select required)
+local bool_TargetMouseInsteadOfCursor = false  -- place src gate at mouse position instead of edit cursor position
+
 ---------------
 -- variables --
 ---------------
@@ -31,6 +38,11 @@ local markerColor = r.ColorToNative(255,0,0)
 ---------------
 
 function CreateSyncMarker()
+
+    if bool_TargetItemUnderMouse then
+        r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
+        r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
+    end
 
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
@@ -57,7 +69,14 @@ function CreateSyncMarker()
         end
 
         -- Get the relative cursor position within the active take, even when the playhead is moving
-        local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
+        local cursorPos
+
+        if bool_TargetMouseInsteadOfCursor then
+            _, cursorPos = r.BR_ItemAtMouseCursor()
+        else
+            cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
+        end
+
         local takeStartPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
         local cursorPosInTake = cursorPos - takeStartPos + r.GetMediaItemTakeInfo_Value(activeTake, "D_STARTOFFS")
 
