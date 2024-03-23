@@ -1,6 +1,6 @@
 --[[
 
-source-destination edit: 3 point assembly v 0.8
+source-destination edit: 3 point assembly
 
 This file is part of the soapy-seahorse package.
 
@@ -70,7 +70,7 @@ function main()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
     
-    local rippleStateAll, rippleStatePer = SaveTurnOffRipple()
+    local rippleStateAll, rippleStatePer, trimContentState = SaveTurnOffRipple()
 
     cursorPos_origin = r.GetCursorPosition()
   
@@ -122,7 +122,7 @@ function main()
 
     else return end
 
-    ResetRipple(rippleStateAll, rippleStatePer)
+    ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
   
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -368,20 +368,28 @@ function SaveTurnOffRipple()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
-    r.Main_OnCommand(40309, 1) -- Set ripple editing off
 
-    return rippleStateAll, rippleStatePer
+    local trimContentState = r.GetToggleCommandState(41117) -- Options: Trim content behind media items when editing
+
+    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+    r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
+
+    return rippleStateAll, rippleStatePer, trimContentState
 
 end
 
 ------------------------------------------
 
-function ResetRipple(rippleStateAll, rippleStatePer)
+function ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
 
     if rippleStateAll == 1 then
         r.Main_OnCommand(41991, 1)
     elseif rippleStatePer == 1 then
         r.Main_OnCommand(41991, 1)
+    end
+
+    if trimContentState == 0 then
+        r.Main_OnCommand(41121, 1) -- Options: Disable trim content behind media items when editing
     end
 
 end
