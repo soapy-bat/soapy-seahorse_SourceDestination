@@ -32,6 +32,8 @@ local markerColor = r.ColorToNative(255,0,0)
 
 function CreateSyncMarker()
 
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
     local numSelectedItems = r.CountSelectedMediaItems(0)
 
     -- Iterate through selected items
