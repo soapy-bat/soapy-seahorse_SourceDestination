@@ -32,6 +32,8 @@ local bool_moveDstGateAfterEdit = true          -- move destination gate to end 
 
 local bool_removeAllSourceGates = false         -- remove all source gates after the edit
 
+local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
+
 
 ---------------
 -- variables --
@@ -470,6 +472,13 @@ end
 
 -- Function to search for take markers by name in selected items, allows for multiple sources
 function GetTakeMarkerPositionByName(name)
+
+    if bool_TargetItemUnderMouse then
+        r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
+        r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
+    end
+
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
     
