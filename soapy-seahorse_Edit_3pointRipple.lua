@@ -71,65 +71,64 @@ function main()
 
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
-    
-    local rippleStateAll, rippleStatePer, trimContentState = SaveTurnOffRipple()
+
+    local rippleStateAll, rippleStatePer, trimContentState = SaveEditStates()
+
+    if rippleStatePer == 0 then
+        r.Main_OnCommand(41990, 0) -- Set ripple editing per track on
+    end
+    r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
 
     cursorPos_origin = r.GetCursorPosition()
-  
+
     gateIsSet = GetSourceGateIn()
+    if not gateIsSet then return end
 
-    if gateIsSet then
+    gateIsSet = GetSourceGateOut()
+    if not gateIsSet then return end
 
-        gateIsSet = GetSourceGateOut()
+    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
-        if gateIsSet then
-          
-        SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
-         
-        r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
+    r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
-        r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+
+    ToggleLockItemsInSourceLanes(1)
+
+    PasteToTopLane()           -- paste source material
+
+    ToggleLockItemsInSourceLanes(0)
+
+    cursorPos_end = r.GetCursorPosition()
+
+    -- go to start of pasted item
+    r.GoToMarker(0, destinationIdxIn, false)
+
+    if bool_AutoCrossfade then
+        SetCrossfade(xfadeLen)
+    end
+
+    RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
+
+    if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+    end
 
-        ToggleLockItemsInSourceLanes(1)
+    if bool_moveDstGateAfterEdit then
+        r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
+        SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
+    end
 
-        PasteToTopLane()           -- paste source material
+    if bool_removeAllSourceGates then
+        RemoveAllSourceGates(0)
+    end
 
-        ToggleLockItemsInSourceLanes(0)
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
-        cursorPos_end = r.GetCursorPosition()
+    ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
-        -- go to start of pasted item
-        r.GoToMarker(0, destinationIdxIn, false)
-
-        if bool_AutoCrossfade then
-            SetCrossfade(xfadeLen)
-        end
-          
-        RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
-
-        if not bool_AutoCrossfade then
-            r.Main_OnCommand(40020, 0) -- Time Selection: Remove
-        end
-          
-        if bool_moveDstGateAfterEdit then
-            r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-            SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
-        end
-          
-        if bool_removeAllSourceGates then
-            RemoveAllSourceGates(0)
-        end
-
-        r.Main_OnCommand(40289, 0) -- Deselect all items
-        r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
-
-        else return end
-
-    else return end
-
-    ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
-  
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
@@ -176,9 +175,9 @@ end
 function SetTimeSelectionToSourceGates(srcStart, srcEnd)
 
     if srcEnd <= srcStart then return false end
-    
+
     r.GetSet_LoopTimeRange2(0, true, false, srcStart, srcEnd, true)
-    
+
 end
 
 -------------------------------------------------------------------
@@ -198,18 +197,18 @@ end
 function RemoveSourceGates()
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
-  
+
     -- Iterate through selected items
     for i = 0, numSelectedItems - 1 do
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
-        
+
         if mediaItem then
 
             -- Get the active take
             local activeTake = r.GetActiveTake(mediaItem)
-        
+
             if activeTake then
                 -- Remove existing Gate markers
                 local numMarkers = r.GetNumTakeMarkers(activeTake)
@@ -270,7 +269,7 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
         if mediaItem then
 
             local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-            
+
             if itemLane >= 1 then
                 selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
             end
@@ -309,13 +308,13 @@ function RemoveAllSourceGates(safeLane_rx)
     r.SelectAllMediaItems(0, 1)
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
-  
+
     -- Iterate through selected items
     for i = 0, numSelectedItems - 1 do
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
-        
+
         if mediaItem then
 
             local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
@@ -324,7 +323,7 @@ function RemoveAllSourceGates(safeLane_rx)
 
                 -- Get the active take
                 local activeTake = r.GetActiveTake(mediaItem)
-            
+
                 if activeTake then
                     -- Remove existing MarkerLabel markers
                     local numMarkers = r.GetNumTakeMarkers(activeTake)
@@ -345,7 +344,7 @@ function RemoveAllSourceGates(safeLane_rx)
 
                     -- Get the active take
                     local activeTake = r.GetActiveTake(mediaItem)
-                
+
                     if activeTake then
                         -- Remove existing MarkerLabel markers
                         local numMarkers = r.GetNumTakeMarkers(activeTake)
@@ -360,28 +359,21 @@ function RemoveAllSourceGates(safeLane_rx)
                         end
                     end
                 end
-            end            
+            end
         end
     end
-  
+
   r.Main_OnCommand(40289, 0) -- Deselect all items
-  
+
 end
 
 ------------------------------------------
 
-function SaveTurnOffRipple()
+function SaveEditStates()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
-
     local trimContentState = r.GetToggleCommandState(41117) -- Options: Trim content behind media items when editing
-
-    if rippleStatePer == 0 then
-        r.Main_OnCommand(41990, 0) -- Toggle ripple editing per track on
-    end
-     
-    r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
 
     return rippleStateAll, rippleStatePer, trimContentState
 
@@ -389,7 +381,7 @@ end
 
 ------------------------------------------
 
-function ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
+function ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     if rippleStateAll == 1 then
         r.Main_OnCommand(41991, 1)
@@ -414,25 +406,25 @@ function ToggleLockItemsInSourceLanes(lockState_rx)
     local safeLanes = 1 -- Lanes that will not be locked, indexed from the topmost lane
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
-  
+
     r.SelectAllMediaItems(0, 1)
-  
+
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
-  
+
       local mediaItem = r.GetSelectedMediaItem(0, i)
-  
+
       local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-  
+
       if itemLane >= safeLanes then
-  
+
         r.SetMediaItemInfo_Value(mediaItem, "C_LOCK", lockState)
-  
+
       end
-  
+
     end
-  
+
     r.Main_OnCommand(40289, 0) -- Deselect all items
-  
+
   end
 
 
@@ -481,7 +473,7 @@ end
 ------------------------------------------
 
 function SetCursorToSrcStart(srcStart)
-  
+
   r.SetEditCurPos(srcStart, false, false)
 
 end
@@ -520,14 +512,14 @@ function GetTakeMarkerPositionByName(name)
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
-    
+
      -- Iterate through selected items
      for i = 0, numSelectedItems - 1 do
          local selectedItem = r.GetSelectedMediaItem(0, i)
          local take = r.GetActiveTake(selectedItem)
 
         local numMarkers = r.GetNumTakeMarkers(take)
-        
+
         for k = 0, numMarkers - 1 do
             local pos, name_, _  = r.GetTakeMarker(take, k)
             if name_ == name then
@@ -561,7 +553,7 @@ function SelectAllItemsInTopLane() -- only works if the UI is allowed to refresh
 
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-  
+
     r.Main_OnCommand(43099, 0) -- show/play all lanes
 
 end

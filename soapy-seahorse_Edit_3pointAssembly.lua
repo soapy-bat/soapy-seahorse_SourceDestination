@@ -77,52 +77,46 @@ function main()
     cursorPos_origin = r.GetCursorPosition()
   
     gateIsSet = GetSourceGateIn()
+    if not gateIsSet then return end
 
-    if gateIsSet then
+    gateIsSet = GetSourceGateOut()
+    if not gateIsSet then return end
+        
+    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+        
+    r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
-        gateIsSet = GetSourceGateOut()
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
-        if gateIsSet then
-          
-        SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
-         
-        r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
+    PasteToTopLane()           -- paste source material
 
-        r.Main_OnCommand(40289, 0) -- Deselect all items
+    cursorPos_end = r.GetCursorPosition()
+
+    -- go to start of pasted item
+    r.GoToMarker(0, destinationIdxIn, false)
+
+    if bool_AutoCrossfade then
+        SetCrossfade(xfadeLen)
+    end
+        
+    RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
+
+    if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+    end
+        
+    if bool_moveDstGateAfterEdit then
+        r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
+        SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
+    end
+        
+    if bool_removeAllSourceGates then
+        RemoveAllSourceGates(0)
+    end
 
-        PasteToTopLane()           -- paste source material
-
-        cursorPos_end = r.GetCursorPosition()
-
-        -- go to start of pasted item
-        r.GoToMarker(0, destinationIdxIn, false)
-
-        if bool_AutoCrossfade then
-            SetCrossfade(xfadeLen)
-        end
-          
-        RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
-
-        if not bool_AutoCrossfade then
-            r.Main_OnCommand(40020, 0) -- Time Selection: Remove
-        end
-          
-        if bool_moveDstGateAfterEdit then
-            r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-            SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
-        end
-          
-        if bool_removeAllSourceGates then
-            RemoveAllSourceGates(0)
-        end
-
-        r.Main_OnCommand(40289, 0) -- Deselect all items
-        r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
-
-        else return end
-
-    else return end
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
   
