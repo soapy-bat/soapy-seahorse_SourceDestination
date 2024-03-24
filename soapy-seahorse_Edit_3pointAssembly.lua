@@ -387,7 +387,7 @@ function ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
     if rippleStateAll == 1 then
         r.Main_OnCommand(41991, 1)
     elseif rippleStatePer == 1 then
-        r.Main_OnCommand(41991, 1)
+        r.Main_OnCommand(41990, 1)
     end
 
     if trimContentState == 0 then

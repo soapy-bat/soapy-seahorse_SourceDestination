@@ -37,7 +37,7 @@ local bool_RemoveFade = false       -- experimental: auditions without the fade
 
 local r = reaper
 
-local auditioningItems1, auditioningItems2 = {}
+local auditioningItems1, auditioningItems2 = {}, {}
 local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
 local fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2
 
