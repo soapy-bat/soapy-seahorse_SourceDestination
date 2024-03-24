@@ -395,6 +395,8 @@ function ResetRipple(rippleStateAll, rippleStatePer, trimContentState)
         r.Main_OnCommand(41991, 1)
     elseif rippleStatePer == 1 then
         r.Main_OnCommand(41990, 1)
+    elseif rippleStateAll == 0 and rippleStatePer == 0 then
+        r.Main_OnCommand(40309, 1) -- Set ripple editing off
     end
 
     if trimContentState == 0 then
