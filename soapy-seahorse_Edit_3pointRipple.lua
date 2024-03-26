@@ -41,25 +41,14 @@ local bool_TargetItemUnderMouse = false         -- select item under mouse (no c
 
 local r = reaper
 
-local sourceGateIn, sourceGateOut
-local gateIsSet = true
-
 local sourceLabelIn = "SRC_IN"
 local sourceLabelOut = "SRC_OUT"
 local destinationLabelIn = "DST_IN"
 local destinationIdxIn = 996
-local destinationLabelOut = "DST_OUT"
-local destinationIdxOut = 997
-
-local cursorPos_origin
-local cursorPos_end
 
 ----------
 -- main --
 ----------
-
--- at least one track that the items to be edited are on needs to be selected.
--- I recommend lokasenna: track selection follows item selection.
 
 function main()
 
@@ -69,23 +58,32 @@ function main()
 
     ---######### START ##########---
 
+    ---##### buffer and set various edit states #####---
+
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = SaveEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = PrepareEditStates()
 
     if rippleStatePer == 0 then
         r.Main_OnCommand(41990, 0) -- Set ripple editing per track on
     end
     r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
 
-    cursorPos_origin = r.GetCursorPosition()
+    ---##### get coordinates #####---
 
-    gateIsSet = GetSourceGateIn()
-    if not gateIsSet then return end
+    local cursorPos_origin = r.GetCursorPosition()
 
-    gateIsSet = GetSourceGateOut()
-    if not gateIsSet then return end
+    local sourceGateIn = GetSourceGateIn()
+    if not sourceGateIn then return end
+
+    local sourceGateOut = GetSourceGateOut()
+    if not sourceGateOut then return end
+
+    ---##### src copy routine #####---
+
+    local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
+    r.SetOnlyTrackSelected(targetTrack)
 
     SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
@@ -94,13 +92,17 @@ function main()
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
+    ---##### paste source to destination #####---
+
     ToggleLockItemsInSourceLanes(1)
 
     PasteToTopLane()           -- paste source material
 
     ToggleLockItemsInSourceLanes(0)
 
-    cursorPos_end = r.GetCursorPosition()
+    ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
+
+    local cursorPos_end = r.GetCursorPosition()
 
     -- go to start of pasted item
     r.GoToMarker(0, destinationIdxIn, false)
@@ -109,7 +111,7 @@ function main()
         SetCrossfade(xfadeLen)
     end
 
-    RemoveAllSourceGates(-1)    -- remove src gates from newly pasted material
+    RemoveSourceGates(-1)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -121,7 +123,7 @@ function main()
     end
 
     if bool_removeAllSourceGates then
-        RemoveAllSourceGates(0)
+        RemoveSourceGates(0)
     end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
@@ -136,7 +138,7 @@ function main()
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
-    r.Undo_EndBlock("ReaPyr 3 point assembly", -1)
+    r.Undo_EndBlock("ReaPyr 3 point ripple", -1)
 
 end
 
@@ -147,11 +149,10 @@ end
 function GetSourceGateIn() -- Find SRC_IN marker
   local sourceInPos = GetTakeMarkerPositionByName(sourceLabelIn)
   if sourceInPos then
-      sourceGateIn = sourceInPos
-      return true
+      return sourceInPos
   else
       r.ShowMessageBox(sourceLabelIn .. " not found.", "Take marker not found", 0)
-      return false
+      return 
   end
 end
 
@@ -160,11 +161,10 @@ end
 function GetSourceGateOut() -- Find SRC_OUT marker
   local sourceOutPos = GetTakeMarkerPositionByName(sourceLabelOut)
   if sourceOutPos then
-      sourceGateOut = sourceOutPos
-      return true
+      return sourceOutPos
   else
       r.ShowMessageBox(sourceLabelOut .. " not found.", "Take marker not found", 0)
-      return false
+      return
   end
 end
 
@@ -298,7 +298,7 @@ end
 
 ------------------------------------------
 
-function RemoveAllSourceGates(safeLane_rx)
+function RemoveSourceGates(safeLane_rx)
 
     -- (-1): remove ONLY topmost lanes' src gates
     local safeLane = safeLane_rx
@@ -369,7 +369,7 @@ end
 
 ------------------------------------------
 
-function SaveEditStates()
+function PrepareEditStates()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
