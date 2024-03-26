@@ -44,16 +44,13 @@ local r = reaper
 local sourceLabelIn = "SRC_IN"
 local sourceLabelOut = "SRC_OUT"
 local destinationLabelIn = "DST_IN"
-local destinationIdxIn = 996
 local destinationLabelOut = "DST_OUT"
+local destinationIdxIn = 996
 local destinationIdxOut = 997
 
 ----------
 -- main --
 ----------
-
--- at least one track that the items to be edited are on needs to be selected.
--- I recommend lokasenna: track selection follows item selection.
 
 function main()
 
@@ -105,14 +102,15 @@ function main()
 
     ---##### continue src copy routine #####---
 
+    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+
     r.SetMediaItemSelected(sourceItem, true)
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
+
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
     ---##### paste source to destination #####---
@@ -698,22 +696,6 @@ function HealAllSplits()
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
 end
-
--------------------------------------------------------------------
-
-function SelectAllItemsInTopLane() -- only works if the UI is allowed to refresh
-
-    r.Main_OnCommand(42790, 0) -- play only first lane
-    r.Main_OnCommand(43098, 0) -- show/play only one lane
-
-    r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-    r.Main_OnCommand(43099, 0) -- show/play all lanes
-
-end
-
--------------------------------------------------------------------
 
 --------------------------------
 -- main execution starts here --
