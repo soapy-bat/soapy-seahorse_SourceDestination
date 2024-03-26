@@ -94,10 +94,9 @@ function main()
 
     local cursorPos_end = r.GetCursorPosition()
 
-    -- go to start of pasted item
-    r.GoToMarker(0, destinationIdxIn, false)
-
     if bool_AutoCrossfade then
+        -- go to start of pasted item, set fade
+        r.GoToMarker(0, destinationIdxIn, false)
         SetCrossfade(xfadeLen)
     end
         
