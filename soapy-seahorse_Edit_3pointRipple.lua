@@ -202,23 +202,21 @@ function RemoveSourceGates()
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
+        if not mediaItem then return end
 
-        if mediaItem then
+        -- Get the active take
+        local activeTake = r.GetActiveTake(mediaItem)
 
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-
-            if activeTake then
-                -- Remove existing Gate markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == sourceLabelIn then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                    if markerType == sourceLabelOut then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
+        if activeTake then
+            -- Remove existing Gate markers
+            local numMarkers = r.GetNumTakeMarkers(activeTake)
+            for i = numMarkers, 0, -1 do
+                local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+                if markerType == sourceLabelIn then
+                    r.DeleteTakeMarker(activeTake, i)
+                end
+                if markerType == sourceLabelOut then
+                    r.DeleteTakeMarker(activeTake, i)
                 end
             end
         end
@@ -265,16 +263,13 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
 
         local mediaItem = r.GetSelectedMediaItem(0, i)
 
-        if mediaItem then
+        if not mediaItem then return end
 
-            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
-            if itemLane >= 1 then
-                selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
-            end
-
+        if itemLane >= 1 then
+            selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
         end
-
     end
 
     for i = 0, #selectedItemsGUID do
@@ -313,12 +308,32 @@ function RemoveSourceGates(safeLane_rx)
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
+        if not mediaItem then return end
 
-        if mediaItem then
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
-            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+        if itemLane >= safeLane and safeLane ~= -1 then
 
-            if itemLane >= safeLane and safeLane ~= -1 then
+            -- Get the active take
+            local activeTake = r.GetActiveTake(mediaItem)
+
+            if activeTake then
+                -- Remove existing MarkerLabel markers
+                local numMarkers = r.GetNumTakeMarkers(activeTake)
+                for i = numMarkers, 0, -1 do
+                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+                    if markerType == sourceLabelIn then
+                        r.DeleteTakeMarker(activeTake, i)
+                    end
+                    if markerType == sourceLabelOut then
+                        r.DeleteTakeMarker(activeTake, i)
+                    end
+                end
+            end
+
+        elseif safeLane == -1 then
+
+            if itemLane == 0 then
 
                 -- Get the active take
                 local activeTake = r.GetActiveTake(mediaItem)
@@ -336,30 +351,9 @@ function RemoveSourceGates(safeLane_rx)
                         end
                     end
                 end
-
-            elseif safeLane == -1 then
-
-                if itemLane == 0 then
-
-                    -- Get the active take
-                    local activeTake = r.GetActiveTake(mediaItem)
-
-                    if activeTake then
-                        -- Remove existing MarkerLabel markers
-                        local numMarkers = r.GetNumTakeMarkers(activeTake)
-                        for i = numMarkers, 0, -1 do
-                            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                            if markerType == sourceLabelIn then
-                                r.DeleteTakeMarker(activeTake, i)
-                            end
-                            if markerType == sourceLabelOut then
-                                r.DeleteTakeMarker(activeTake, i)
-                            end
-                        end
-                    end
-                end
             end
         end
+        
     end
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
@@ -411,6 +405,7 @@ function ToggleLockItemsInSourceLanes(lockState_rx)
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
       local mediaItem = r.GetSelectedMediaItem(0, i)
+      if not mediaItem then return end
 
       local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 

@@ -184,32 +184,25 @@ end
 function RemoveSourceGates()
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
-  
-    -- Iterate through selected items
+
     for i = 0, numSelectedItems - 1 do
 
-        -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
-        
-        if mediaItem then
+        if not mediaItem then return end
 
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-        
-            if activeTake then
-                -- Remove existing Gate markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == sourceLabelIn then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                    if markerType == sourceLabelOut then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                end
+        local activeTake = r.GetActiveTake(mediaItem)
+        if not activeTake then return end
+
+        -- Remove existing gate markers
+        local numMarkers = r.GetNumTakeMarkers(activeTake)
+        for k = numMarkers, 0, -1 do
+            local _, markerLabel, _, _, _ = r.GetTakeMarker(activeTake, k)
+            if markerLabel == sourceLabelIn then
+                r.DeleteTakeMarker(activeTake, k)
+            elseif markerLabel == sourceLabelOut then
+                r.DeleteTakeMarker(activeTake, k)
             end
-        end
+        end    
     end
 end
 
@@ -253,14 +246,12 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
 
         local mediaItem = r.GetSelectedMediaItem(0, i)
 
-        if mediaItem then
+        if not mediaItem then return end
 
-            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-            
-            if itemLane >= 1 then
-                selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
-            end
-
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+        
+        if itemLane >= 1 then
+            selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
         end
 
     end
@@ -268,12 +259,9 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
     for i = 0, #selectedItemsGUID do
 
         local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
+        if not mediaItem then return end
 
-        if mediaItem then
-
-            r.SetMediaItemSelected(mediaItem, 0)
-
-        end
+        r.SetMediaItemSelected(mediaItem, 0)
 
     end
 
@@ -301,52 +289,46 @@ function RemoveSourceGates(safeLane_rx)
 
         -- Get the active media item
         local mediaItem = r.GetSelectedMediaItem(0, i)
-        
-        if mediaItem then
+        if not mediaItem then return end
 
-            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
-            if itemLane >= safeLane and safeLane ~= -1 then
+        if itemLane >= safeLane and safeLane ~= -1 then
+
+            -- Get the active take
+            local activeTake = r.GetActiveTake(mediaItem)
+            if not activeTake then return end
+
+            -- Remove existing MarkerLabel markers
+            local numMarkers = r.GetNumTakeMarkers(activeTake)
+            for i = numMarkers, 0, -1 do
+                local _, markerLabel, _, _, _ = r.GetTakeMarker(activeTake, i)
+                if markerLabel == sourceLabelIn then
+                    r.DeleteTakeMarker(activeTake, i)
+                elseif markerLabel == sourceLabelOut then
+                    r.DeleteTakeMarker(activeTake, i)
+                end
+            end
+
+        elseif safeLane == -1 then
+
+            if itemLane == 0 then
 
                 -- Get the active take
                 local activeTake = r.GetActiveTake(mediaItem)
-            
-                if activeTake then
-                    -- Remove existing MarkerLabel markers
-                    local numMarkers = r.GetNumTakeMarkers(activeTake)
-                    for i = numMarkers, 0, -1 do
-                        local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                        if markerType == sourceLabelIn then
-                            r.DeleteTakeMarker(activeTake, i)
-                        end
-                        if markerType == sourceLabelOut then
-                            r.DeleteTakeMarker(activeTake, i)
-                        end
+                if not activeTake then return end
+
+                -- Remove existing MarkerLabel markers
+                local numMarkers = r.GetNumTakeMarkers(activeTake)
+                for i = numMarkers, 0, -1 do
+                    local _, markerLabel, _, _, _ = r.GetTakeMarker(activeTake, i)
+                    if markerLabel == sourceLabelIn then
+                        r.DeleteTakeMarker(activeTake, i)
+                    elseif markerLabel == sourceLabelOut then
+                        r.DeleteTakeMarker(activeTake, i)
                     end
                 end
-
-            elseif safeLane == -1 then
-
-                if itemLane == 0 then
-
-                    -- Get the active take
-                    local activeTake = r.GetActiveTake(mediaItem)
-                
-                    if activeTake then
-                        -- Remove existing MarkerLabel markers
-                        local numMarkers = r.GetNumTakeMarkers(activeTake)
-                        for i = numMarkers, 0, -1 do
-                            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                            if markerType == sourceLabelIn then
-                                r.DeleteTakeMarker(activeTake, i)
-                            end
-                            if markerType == sourceLabelOut then
-                                r.DeleteTakeMarker(activeTake, i)
-                            end
-                        end
-                    end
-                end
-            end            
+            end
         end
     end
   
