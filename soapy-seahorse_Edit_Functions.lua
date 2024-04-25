@@ -1,10 +1,12 @@
 --[[
 
-source-destination edit: 3 point ripple
+source-destination edit: functions
 
 This file is part of the soapy-seahorse package.
+It is required by the various edit scripts.
 
 (C) 2024 the soapy zoo
+thanks: chmaha, fricia, X-Raym, GPT3.5
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,43 +20,18 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
--------------------
--- user settings --
--------------------
-
--- true = yes, false = no
-
-local xfadeLen = 0.05                           -- default: 50 milliseconds (0.05)
-
-local bool_AutoCrossfade = true                 -- fade newly edited items
-
-local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
-
-local bool_removeAllSourceGates = false         -- remove all source gates after the edit
-
-local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
-
-
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
+local so = {}
 
-local sourceLabelIn = "SRC_IN"
-local sourceLabelOut = "SRC_OUT"
-local destinationLabelIn = "DST_IN"
-local destinationIdxIn = 996
+---------------
+-- functions --
+---------------
 
-local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
-package.path = modulePath .. "?.lua"
-local so = require("soapy-seahorse_Edit_Functions")
-
-----------
--- main --
-----------
-
-function main()
+function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bool_removeAllSourceGates, bool_TargetItemUnderMouse, destinationIdxIn, xfadeLen)
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -65,13 +42,8 @@ function main()
 
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
-
-    local rippleStateAll, rippleStatePer, trimContentState = PrepareEditStates()
-
-    if rippleStatePer == 0 then
-        r.Main_OnCommand(41990, 0) -- Set ripple editing per track on
-    end
-    r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
+    
+    local rippleStateAll, rippleStatePer, trimContentState = so.PrepareEditStates()
 
     ---##### get coordinates #####---
 
@@ -81,23 +53,23 @@ function main()
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
         r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
     end
+  
+    local sourceItem = r.GetSelectedMediaItem(0, 0)
 
-    local sourceItem = r.GetSelectedMediaItem(0,0)
-
-    local sourceGateIn = GetSourceGateIn(sourceItem)
+    local sourceGateIn = so.GetSourceGate(sourceItem, "SRC_IN")
     if not sourceGateIn then return end
 
-    local sourceGateOut = GetSourceGateOut(sourceItem)
+    local sourceGateOut = so.GetSourceGate(sourceItem, "SRC_OUT")
     if not sourceGateOut then return end
 
-    local targetTrack = r.GetMediaItem_Track(sourceItem)
+    local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
 
     ---##### src copy routine #####---
 
     r.SetOnlyTrackSelected(targetTrack)
-
-    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
-
+        
+    so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+        
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
@@ -105,11 +77,7 @@ function main()
 
     ---##### paste source to destination #####---
 
-    ToggleLockItemsInSourceLanes(1)
-
-    PasteToTopLane()           -- paste source material
-
-    ToggleLockItemsInSourceLanes(0)
+    so.PasteToTopLane(destinationIdxIn)           -- paste source material
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
@@ -118,29 +86,29 @@ function main()
     if bool_AutoCrossfade then
         -- go to start of pasted item, set fade
         r.GoToMarker(0, destinationIdxIn, false)
-        SetCrossfade(xfadeLen)
+        so.SetCrossfade(xfadeLen)
     end
-
-    RemoveSourceGates(-1)    -- remove src gates from newly pasted material
+        
+    so.RemoveSourceGates(-1, "SRC_IN", "SRC_OUT")    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
     end
-
+        
     if bool_moveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
+        so.SetDstGateIn("DST_IN", destinationIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
     end
-
+        
     if bool_removeAllSourceGates then
-        RemoveSourceGates(0)
+        so.RemoveSourceGates(0, "SRC_IN", "SRC_OUT")
     end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
-    ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
-
+    so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+  
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
@@ -148,42 +116,31 @@ function main()
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
-    r.Undo_EndBlock("ReaPyr 3 point ripple", -1)
+    r.Undo_EndBlock("ReaPyr 3 point assembly", -1)
 
 end
 
----------------
--- functions --
----------------
+-----------
+-- utils --
+-----------
 
-function GetSourceGateIn(sourceItem_rx) -- Find SRC_IN marker
+function so.GetSourceGate(sourceItem_rx, markerLabel_rx) -- Find SRC_OUT marker
     local sourceItem = sourceItem_rx
-    local sourceInPos = GetTakeMarkerPositionByName(sourceItem, sourceLabelIn)
-    if sourceInPos then
-        return sourceInPos
+    local markerLabel = markerLabel_rx
+
+    local sourceMarkerPos = so.GetTakeMarkerPositionByName(sourceItem, markerLabel)
+
+    if sourceMarkerPos then
+        return sourceMarkerPos
     else
-        r.ShowMessageBox(sourceLabelIn .. " not found.", "Take marker not found", 0)
-        return 
+        r.ShowMessageBox(markerLabel .. " not found.", "Take marker not found", 0)
+        return
     end
 end
 
 -------------------------------------------------------------------
 
-function GetSourceGateOut(sourceItem_rx) -- Find SRC_OUT marker
-    local sourceItem = sourceItem_rx
-  local sourceOutPos = GetTakeMarkerPositionByName(sourceItem, sourceLabelOut)
-  if sourceOutPos then
-      return sourceOutPos
-  else
-      r.ShowMessageBox(sourceLabelOut .. " not found.", "Take marker not found", 0)
-      return
-  end
-end
-
--------------------------------------------------------------------
-
--- Function to search for take markers by name in selected items, allows for multiple sources
-function GetTakeMarkerPositionByName(sourceItem_rx, markerName_rx)
+function so.GetTakeMarkerPositionByName(sourceItem_rx, markerName_rx)
 
     local sourceItem = sourceItem_rx
     local markerName = markerName_rx
@@ -217,9 +174,10 @@ end
 
 -------------------------------------------------------------------
 
+
 -- Function to set a Time Selection based on given start and end points
 
-function SetTimeSelectionToSourceGates(srcStart, srcEnd)
+function so.SetTimeSelectionToSourceGates(srcStart, srcEnd)
 
     if srcEnd <= srcStart then return false end
 
@@ -229,30 +187,36 @@ end
 
 -------------------------------------------------------------------
 
-function PasteToTopLane()
+function so.PasteToTopLane(dstInIdx_rx)
 
-  r.GoToMarker(0, destinationIdxIn, false)
-  r.Main_OnCommand(42790, 0) -- play only first lane
-  r.Main_OnCommand(43098, 0) -- show/play only one lane
-  r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
-  r.Main_OnCommand(43099, 0) -- show/play all lanes
+    local dstInIdx = dstInIdx_rx
+
+    r.GoToMarker(0, dstInIdx, false)
+    r.Main_OnCommand(42790, 0) -- play only first lane
+    r.Main_OnCommand(43098, 0) -- show/play only one lane
+    r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
+    r.Main_OnCommand(43099, 0) -- show/play all lanes
 
 end
 
 -------------------------------------------------------------------
 
-function SetDstGateIn()       -- thanks chmaha <3
-    local markerLabel = destinationLabelIn
+function so.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
+
+    local dstInLabel = dstInLabel_rx
+    local dstInIdx = dstInIdx_rx
+
+    local markerLabel = dstInLabel
     local markerColor = r.ColorToNative(22, 141, 195)
 
     local cursorPosition = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(NULL, destinationIdxIn, false)
-    r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, destinationIdxIn, markerColor | 0x1000000)
+    r.DeleteProjectMarker(0, dstInIdx, false)
+    r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, dstInIdx, markerColor | 0x1000000)
 end
 
 -------------------------------------------------------------------
 
-function SetCrossfade(xfadeLen)    -- thanks chmaha <3
+function so.SetCrossfade(xfadeLen)    -- thanks chmaha <3
 
     -- assumes that the cursor is at the center of the "fade in spe"
 
@@ -308,10 +272,12 @@ end
 
 ------------------------------------------
 
-function RemoveSourceGates(safeLane_rx)
+function so.RemoveSourceGates(safeLane_rx, sourceLabelIn_rx, sourceLabelOut_rx)
 
     -- (-1): remove ONLY topmost lanes' src gates
     local safeLane = safeLane_rx
+    local sourceLabelIn = sourceLabelIn_rx
+    local sourceLabelOut = sourceLabelOut_rx
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
@@ -378,7 +344,7 @@ end
 
 ------------------------------------------
 
-function PrepareEditStates()
+function so.PrepareEditStates()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
@@ -390,7 +356,7 @@ end
 
 ------------------------------------------
 
-function ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+function so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     if rippleStateAll == 1 then
         r.Main_OnCommand(41991, 1)
@@ -408,7 +374,7 @@ end
 
 ------------------------------------------
 
-function ToggleLockItemsInSourceLanes(lockState_rx)
+function so.ToggleLockItemsInSourceLanes(lockState_rx)
 
     local lockState = lockState_rx
 
@@ -437,106 +403,4 @@ function ToggleLockItemsInSourceLanes(lockState_rx)
 
   end
 
-
---------------------------
--- deprecated functions --
---------------------------
-
--------------------------------------------------------------------
-
-function SplitItemAtDstGateIn()       -- split item at destination gate in, thanks chmaha <3
-
-    r.Main_OnCommand(40927, 0)        -- Options: Enable auto-crossfade on split
-    r.Main_OnCommand(40939, 0)        -- Track: Select track 01
-    r.GoToMarker(0, destinationIdxIn, false)
-    local selectUnder = r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX")
-    r.Main_OnCommand(selectUnder, 0)  -- Xenakios/SWS: Select items under edit cursor on selected tracks
-    r.Main_OnCommand(40034, 0)        -- Item grouping: Select all items in groups
-    local selectedItems = r.CountSelectedMediaItems(0)
-    r.Main_OnCommand(40912, 0)        -- Options: Toggle auto-crossfade on split (OFF)
-    if selectedItems > 0 then
-        r.Main_OnCommand(40186, 0)    -- Item: Split items at edit or play cursor (ignoring grouping)
-    end
-    r.Main_OnCommand(40289, 0)        -- Item: Unselect all items
-
-end
-
--------------------------------------------------------------------
-
-function SplitItemAtDstGateIn2()       -- split item at destination gate in, thanks chmaha <3
-
-    --r.Main_OnCommand(40927, 0)       -- Options: Enable auto-crossfade on split
-    --r.Main_OnCommand(40939, 0)       -- Track: Select track 01
-    r.GoToMarker(0, destinationIdxIn, false)
-    local selectUnder = r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX")
-    r.Main_OnCommand(selectUnder, 0)   -- Xenakios/SWS: Select items under edit cursor on selected tracks
-    r.Main_OnCommand(40034, 0)         -- Item grouping: Select all items in groups
-    local selectedItems = r.CountSelectedMediaItems(0)
-    --r.Main_OnCommand(40912, 0)        -- Options: Toggle auto-crossfade on split (OFF)
-    if selectedItems > 0 then
-        r.Main_OnCommand(40186, 0)     -- Item: Split items at edit or play cursor (ignoring grouping)
-    end
-    r.Main_OnCommand(40289, 0)         -- Item: Unselect all items
-
-end
-
-------------------------------------------
-
-function SetCursorToSrcStart(srcStart)
-
-  r.SetEditCurPos(srcStart, false, false)
-
-end
-
--------------------------------------------------------------------
-
--- Function to set a Razor Edit Area based on given start and end points
-
-function SetRazorEditToSourceGates(srcStart, srcEnd)
-
-    if srcEnd <= srcStart then return false end
-
-    countSelTrks = r.CountSelectedTracks( 0 )
-    countAllTrks = r.CountTracks( 0 )
-
-    for i = 0, count_tracks - 1 do
-      local track = r.GetTrack(0, i)
-      if countSelTrks == 0 or r.IsTrackSelected( track ) then
-        local razorStr = srcStart .. " " .. srcEnd .. ' ""'
-        local retval, stringNeedBig = r.GetSetMediaTrackInfo_String( track, "P_RAZOREDITS", razorStr, true )
-      end
-    end
-
-end
-
--------------------------------------------------------------------
-
-function HealAllSplits()
-
-  r.Main_OnCommand(40182, 0) -- Select All
-  r.Main_OnCommand(40548, 0) -- Heal splits in items
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-
-end
-
--------------------------------------------------------------------
-
-function SelectAllItemsInTopLane() -- only works if the UI is allowed to refresh
-
-    r.Main_OnCommand(42790, 0) -- play only first lane
-    r.Main_OnCommand(43098, 0) -- show/play only one lane
-
-    r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-    r.Main_OnCommand(43099, 0) -- show/play all lanes
-
-end
-
--------------------------------------------------------------------
-
---------------------------------
--- main execution starts here --
---------------------------------
-
-main()
+  return so
