@@ -1,6 +1,6 @@
 --[[
 
-source-destination edit: 3 point assembly
+source-destination edit: 3 point edit (no ripple)
 
 This file is part of the soapy-seahorse package.
 
@@ -18,33 +18,11 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
--------------------
--- user settings --
--------------------
-
--- true = yes, false = no
-
-local xfadeLen = 0.05                           -- default: 50 milliseconds (0.05)
-
-local bool_AutoCrossfade = true                 -- fade newly edited items
-
-local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
-
-local bool_removeAllSourceGates = false         -- remove all source gates after the edit
-
-local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
-
-
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
-
-local sourceLabelIn = "SRC_IN"
-local sourceLabelOut = "SRC_OUT"
-local destinationLabelIn = "DST_IN"
-local destinationIdxIn = 996
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
@@ -56,7 +34,7 @@ local so = require("soapy-seahorse_Edit_Functions")
 
 function main()
 
-    so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bool_removeAllSourceGates, bool_TargetItemUnderMouse, destinationIdxIn, xfadeLen)
+    so.ThreePointEdit(false)
 
 end
 

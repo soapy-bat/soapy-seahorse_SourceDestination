@@ -20,6 +20,23 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
+-------------------
+-- user settings --
+-------------------
+
+-- true = yes, false = no
+
+local xfadeLen = 0.05                           -- default: 50 milliseconds (0.05)
+
+local bool_AutoCrossfade = true                 -- fade newly edited items
+
+local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
+
+local bool_removeAllSourceGates = false         -- remove all source gates after the edit
+
+local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
+
+
 ---------------
 -- variables --
 ---------------
@@ -27,11 +44,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 local r = reaper
 local so = {}
 
+local srcLabelIn = "SRC_IN"
+local srcLabelOut = "SRC_OUT"
+local dstLabelIn = "DST_IN"
+local dstIdxIn = 996
+
 ---------------
 -- functions --
 ---------------
 
-function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bool_removeAllSourceGates, bool_TargetItemUnderMouse, destinationIdxIn, xfadeLen)
+function so.ThreePointEdit(bool_Ripple)
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -42,8 +64,15 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
 
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
-    
+
     local rippleStateAll, rippleStatePer, trimContentState = so.PrepareEditStates()
+
+    if bool_Ripple then
+        if rippleStatePer == 0 then
+            r.Main_OnCommand(41990, 0) -- Set ripple editing per track on
+        end
+        r.Main_OnCommand(41120, 1)     -- Options: Enable trim content behind media items when editing
+    end
 
     ---##### get coordinates #####---
 
@@ -53,13 +82,13 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
         r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
     end
-  
-    local sourceItem = r.GetSelectedMediaItem(0, 0)
 
-    local sourceGateIn = so.GetSourceGate(sourceItem, "SRC_IN")
+    local sourceItem = r.GetSelectedMediaItem(0,0)
+
+    local sourceGateIn = so.GetSourceGate(sourceItem, srcLabelIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = so.GetSourceGate(sourceItem, "SRC_OUT")
+    local sourceGateOut = so.GetSourceGate(sourceItem, srcLabelOut)
     if not sourceGateOut then return end
 
     local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
@@ -67,9 +96,9 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
     ---##### src copy routine #####---
 
     r.SetOnlyTrackSelected(targetTrack)
-        
+
     so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
-        
+
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
@@ -77,7 +106,15 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
 
     ---##### paste source to destination #####---
 
-    so.PasteToTopLane(destinationIdxIn)           -- paste source material
+    if bool_Ripple then
+        so.ToggleLockItemsInSourceLanes(1)
+    end
+
+    so.PasteToTopLane(dstIdxIn)           -- paste source material
+
+    if bool_Ripple then
+        so.ToggleLockItemsInSourceLanes(0)
+    end
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
@@ -85,30 +122,30 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
 
     if bool_AutoCrossfade then
         -- go to start of pasted item, set fade
-        r.GoToMarker(0, destinationIdxIn, false)
+        r.GoToMarker(0, dstIdxIn, false)
         so.SetCrossfade(xfadeLen)
     end
-        
-    so.RemoveSourceGates(-1, "SRC_IN", "SRC_OUT")    -- remove src gates from newly pasted material
+
+    so.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
     end
-        
+
     if bool_moveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        so.SetDstGateIn("DST_IN", destinationIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
+        so.SetDstGateIn(dstLabelIn, dstIdxIn)  -- move destination gate in to end of pasted material (assembly line style)
     end
-        
+
     if bool_removeAllSourceGates then
-        so.RemoveSourceGates(0, "SRC_IN", "SRC_OUT")
+        so.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
-  
+
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
@@ -116,8 +153,11 @@ function so.ThreePointAssembly(bool_AutoCrossfade, bool_moveDstGateAfterEdit, bo
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
-    r.Undo_EndBlock("ReaPyr 3 point assembly", -1)
-
+    if bool_Ripple then
+        r.Undo_EndBlock("ReaPyr 3 point ripple", -1)
+    else
+        r.Undo_EndBlock("ReaPyr 3 point edit", -1)
+    end
 end
 
 -----------
@@ -248,8 +288,9 @@ function so.SetCrossfade(xfadeLen)    -- thanks chmaha <3
         local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
         if itemLane >= 1 then
-            selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
+            table.insert(selectedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
         end
+
     end
 
     for i = 0, #selectedItemsGUID do
@@ -257,15 +298,12 @@ function so.SetCrossfade(xfadeLen)    -- thanks chmaha <3
         local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
 
         if mediaItem then
-
-            r.SetMediaItemSelected(mediaItem, 0)
-
+            r.SetMediaItemSelected(mediaItem, false)
         end
 
     end
 
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
-
     r.Main_OnCommand(40635, 0) -- Time selection: Remove time selection
 
 end

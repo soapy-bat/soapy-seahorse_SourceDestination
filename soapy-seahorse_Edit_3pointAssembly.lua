@@ -46,6 +46,10 @@ local sourceLabelOut = "SRC_OUT"
 local destinationLabelIn = "DST_IN"
 local destinationIdxIn = 996
 
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "?.lua"
+local so = require("soapy-seahorse_Edit_Functions")
+
 ----------
 -- main --
 ----------

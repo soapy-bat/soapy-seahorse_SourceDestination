@@ -286,7 +286,7 @@ function MoveDstOut(difference_rx, dstOutPos_rx)
 
         local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
         if itemLane >= 1 then
-            r.SetMediaItemSelected(mediaItem, 0)
+            r.SetMediaItemSelected(mediaItem, false)
         end
 
         i = i + 1
@@ -392,7 +392,7 @@ function SetDstGateIn()       -- thanks chmaha <3
     local markerColor = r.ColorToNative(22, 141, 195)
 
     local cursorPosition = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(NULL, destinationIdxIn, false)
+    r.DeleteProjectMarker(0, destinationIdxIn, false)
     r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, destinationIdxIn, markerColor | 0x1000000)
 end
 
@@ -439,7 +439,7 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
         local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
         if not mediaItem then return end
 
-        r.SetMediaItemSelected(mediaItem, 0)
+        r.SetMediaItemSelected(mediaItem, false)
     end
 
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
@@ -457,7 +457,7 @@ function RemoveSourceGates(safeLane_rx)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
-    r.SelectAllMediaItems(0, 1)
+    r.SelectAllMediaItems(0, true)
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
 
@@ -555,7 +555,7 @@ function ToggleLockItemsInSourceLanes(lockState_rx)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
-    r.SelectAllMediaItems(0, 1)
+    r.SelectAllMediaItems(0, true)
 
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
@@ -634,10 +634,10 @@ function SetRazorEditToSourceGates(srcStart, srcEnd)
 
     if srcEnd <= srcStart then return false end
 
-    countSelTrks = r.CountSelectedTracks( 0 )
-    countAllTrks = r.CountTracks( 0 )
+    local countSelTrks = r.CountSelectedTracks( 0 )
+    local countAllTrks = r.CountTracks( 0 )
 
-    for i = 0, count_tracks - 1 do
+    for i = 0, countAllTrks - 1 do
       local track = r.GetTrack(0, i)
       if countSelTrks == 0 or r.IsTrackSelected( track ) then
         local razorStr = srcStart .. " " .. srcEnd .. ' ""'
