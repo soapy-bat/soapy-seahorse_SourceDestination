@@ -41,12 +41,12 @@ local bool_TargetItemUnderMouse = false         -- select item under mouse (no c
 
 local r = reaper
 
-local sourceLabelIn = "SRC_IN"
-local sourceLabelOut = "SRC_OUT"
-local destinationLabelIn = "DST_IN"
-local destinationLabelOut = "DST_OUT"
-local destinationIdxIn = 996
-local destinationIdxOut = 997
+local srcLabelIn = "SRC_IN"
+local srcLabelOut = "SRC_OUT"
+local dstLabelIn = "DST_IN"
+local dstLabelOut = "DST_OUT"
+local dstIdxIn = 996
+local dstIdxOut = 997
 
 ----------
 -- main --
@@ -55,7 +55,7 @@ local destinationIdxOut = 997
 function main()
 
     r.Undo_BeginBlock()
-    r.PreventUIRefresh(1)
+    --r.PreventUIRefresh(1)
 
     ---######### START ##########---
 
@@ -66,9 +66,7 @@ function main()
 
     local rippleStateAll, rippleStatePer, trimContentState = SaveEditStates()
 
-    if rippleStatePer == 0 then
-        r.Main_OnCommand(41990, 0) -- Set ripple editing per track on
-    end
+    r.Main_OnCommand(40309, 1) -- Set ripple editing off
     r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
 
     ---##### get all coordinates #####---
@@ -76,7 +74,7 @@ function main()
     local cursorPos_origin = r.GetCursorPosition()
 
     -- future routines (MoveDstOut) will deselect the item,
-    -- that's why we get this one first:
+    -- that's why we will get this one first:
     local sourceItem = r.GetSelectedMediaItem(0, 0)
     if not sourceItem then return end
 
@@ -115,8 +113,11 @@ function main()
 
     ---##### paste source to destination #####---
 
-    r.Main_OnCommand(40309, 1) -- Set ripple editing off
+    ToggleLockItemsInSourceLanes(1)
+
     PasteToTopLane()           -- paste source material
+    
+    ToggleLockItemsInSourceLanes(0)
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
@@ -124,7 +125,10 @@ function main()
 
     if bool_AutoCrossfade then
         -- go to start of pasted item
-        r.GoToMarker(0, destinationIdxIn, false)
+        r.GoToMarker(0, dstIdxIn, false)
+        SetCrossfade(xfadeLen)
+
+        r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
         SetCrossfade(xfadeLen)
     end
 
@@ -143,7 +147,7 @@ function main()
         RemoveSourceGates(0)
     end
 
-    r.DeleteProjectMarker(0, destinationIdxOut, false)
+    r.DeleteProjectMarker(0, dstIdxOut, false)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
@@ -167,7 +171,7 @@ end
 
 function CalcDstOffset(srcStart, srcEnd, dstStart, dstEnd)
 
-    -- get amount that destination out needs to be move by
+    -- get amount that destination out needs to be moved by
 
     if srcEnd <= srcStart then return end
     if dstEnd <= dstStart then return end
@@ -183,11 +187,11 @@ end
 -------------------------------------------------------------------
 
 function GetSourceGateIn() -- Find SRC_IN marker
-  local sourceInPos = GetTakeMarkerPositionByName(sourceLabelIn)
+  local sourceInPos = GetTakeMarkerPositionByName(srcLabelIn)
   if sourceInPos then
       return sourceInPos
   else
-      r.ShowMessageBox(sourceLabelIn .. " not found.", "Take marker not found", 0)
+      r.ShowMessageBox(srcLabelIn .. " not found.", "Take marker not found", 0)
       return
   end
 end
@@ -195,11 +199,11 @@ end
 -------------------------------------------------------------------
 
 function GetSourceGateOut() -- Find SRC_OUT marker
-  local sourceOutPos = GetTakeMarkerPositionByName(sourceLabelOut)
+  local sourceOutPos = GetTakeMarkerPositionByName(srcLabelOut)
   if sourceOutPos then
       return sourceOutPos
   else
-      r.ShowMessageBox(sourceLabelOut .. " not found.", "Take marker not found", 0)
+      r.ShowMessageBox(srcLabelOut .. " not found.", "Take marker not found", 0)
       return
   end
 end
@@ -214,7 +218,7 @@ function GetDstGateIn() -- Find DST_IN marker
 
         local _, _, dstInPos, _, _, markerIndex = r.EnumProjectMarkers(i)
 
-        if markerIndex == destinationIdxIn then
+        if markerIndex == dstIdxIn then
             return dstInPos
         end
     end
@@ -231,7 +235,7 @@ function GetDstGateOut() -- Find DST_OUT marker
 
         local _, _, dstOutPos, _, _, markerIndex = r.EnumProjectMarkers(i)
 
-        if markerIndex == destinationIdxOut then
+        if markerIndex == dstIdxOut then
             return dstOutPos
         end
     end
@@ -257,7 +261,7 @@ function PasteToTopLane()
     r.Main_OnCommand(42790, 0) -- play only first lane
     r.Main_OnCommand(43098, 0) -- show/play only one lane
 
-    r.GoToMarker(0, destinationIdxIn, false)
+    r.GoToMarker(0, dstIdxIn, false)
     r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
     r.Main_OnCommand(43099, 0) -- show/play all lanes
@@ -271,45 +275,76 @@ function MoveDstOut(difference_rx, dstOutPos_rx)
     local difference = difference_rx
     local dstOutPos = dstOutPos_rx
 
-    ToggleLockItemsInSourceLanes(1)
-
-    r.GoToMarker(0, destinationIdxOut, false) -- place cursor
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.GoToMarker(0, dstIdxOut, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
 
-    local numSelectedItems = r.CountSelectedMediaItems(0)
-    local i = 0
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40421, 0) -- Item: Select all items in track
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
-    while i < numSelectedItems do
+    local targetItems = {}
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
         local mediaItem = r.GetSelectedMediaItem(0, i)
+
         if not mediaItem then return end
 
         local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-        if itemLane >= 1 then
-            r.SetMediaItemSelected(mediaItem, false)
+        local itemPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+
+        if itemLane == 0 and itemPos >= dstOutPos then
+            table.insert(targetItems, mediaItem)
         end
 
-        i = i + 1
-        numSelectedItems = r.CountSelectedMediaItems(0)
     end
 
-    r.Main_OnCommand(40759, 0) -- Item: Split items at edit cursor (select right)
+    for i = 1, #targetItems do
 
-    numSelectedItems = r.CountSelectedMediaItems(0)
-    i = 0
+        local mediaItem = targetItems[i]
 
-    while i < numSelectedItems do
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-        if not mediaItem then return end
+        if mediaItem then
 
-        local itemPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
-        local newPos = itemPos + difference
+            local itemPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+            local newPos = itemPos + difference
 
-        r.SetMediaItemInfo_Value(mediaItem, "D_POSITION", newPos)
+            r.SetMediaItemInfo_Value(mediaItem, "D_POSITION", newPos)
 
-        i = i + 1
-        numSelectedItems = r.CountSelectedMediaItems(0)
+        end
+
     end
+
+    HealAllSplits()
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+end
+
+-------------------------------------------------------------------
+
+function MoveDstOut2(difference_rx, dstOutPos_rx)
+
+    -- workaround: if items are moved using D_POSITION, ripple edit state is disregarded.
+    -- probably the one of the more efficient ways instead of moving every single item in the project using D_POSITION.
+
+    local difference = difference_rx
+    local dstOutPos = dstOutPos_rx
+
+    ToggleLockItemsInSourceLanes(1)
+
+    r.GoToMarker(0, dstIdxOut, false) -- place cursor at dst in
+    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+
+    local currentCursorPos = r.GetCursorPosition()
+    r.SetEditCurPos(currentCursorPos + difference, false, false)
+
+    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
+
+    if difference > 0 then
+        r.Main_OnCommand(40200, 0)    -- Time selection: Insert empty space at time selection (moving later items)
+    elseif difference < 0 then
+        r.Main_OnCommand(40201, 0)    -- Time selection: Remove contents of time selection (moving later items)
+    else return end
 
     ToggleLockItemsInSourceLanes(0)
 
@@ -374,10 +409,10 @@ function RemoveSourceGates()
             local numMarkers = r.GetNumTakeMarkers(activeTake)
             for i = numMarkers, 0, -1 do
                 local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                if markerType == sourceLabelIn then
+                if markerType == srcLabelIn then
                     r.DeleteTakeMarker(activeTake, i)
                 end
-                if markerType == sourceLabelOut then
+                if markerType == srcLabelOut then
                     r.DeleteTakeMarker(activeTake, i)
                 end
             end
@@ -388,12 +423,12 @@ end
 -------------------------------------------------------------------
 
 function SetDstGateIn()       -- thanks chmaha <3
-    local markerLabel = destinationLabelIn
+    local markerLabel = dstLabelIn
     local markerColor = r.ColorToNative(22, 141, 195)
 
     local cursorPosition = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(0, destinationIdxIn, false)
-    r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, destinationIdxIn, markerColor | 0x1000000)
+    r.DeleteProjectMarker(0, dstIdxIn, false)
+    r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, dstIdxIn, markerColor | 0x1000000)
 end
 
 -------------------------------------------------------------------
@@ -414,6 +449,7 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
 
     r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
 
+    r.Main_OnCommand(40289, 0) -- Deselect all items
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
@@ -430,16 +466,16 @@ function SetCrossfade(xfadeLen)    -- thanks chmaha <3
         local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
 
         if itemLane >= 1 then
-            selectedItemsGUID[i] = r.BR_GetMediaItemGUID(mediaItem)
+            table.insert(selectedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
         end
     end
 
-    for i = 0, #selectedItemsGUID do
+    for i = 1, #selectedItemsGUID do
 
         local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
-        if not mediaItem then return end
-
-        r.SetMediaItemSelected(mediaItem, false)
+        if mediaItem then
+            r.SetMediaItemSelected(mediaItem, false)
+        end
     end
 
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
@@ -478,10 +514,10 @@ function RemoveSourceGates(safeLane_rx)
                 local numMarkers = r.GetNumTakeMarkers(activeTake)
                 for i = numMarkers, 0, -1 do
                     local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == sourceLabelIn then
+                    if markerType == srcLabelIn then
                         r.DeleteTakeMarker(activeTake, i)
                     end
-                    if markerType == sourceLabelOut then
+                    if markerType == srcLabelOut then
                         r.DeleteTakeMarker(activeTake, i)
                     end
                 end
@@ -499,10 +535,10 @@ function RemoveSourceGates(safeLane_rx)
                     local numMarkers = r.GetNumTakeMarkers(activeTake)
                     for i = numMarkers, 0, -1 do
                         local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                        if markerType == sourceLabelIn then
+                        if markerType == srcLabelIn then
                             r.DeleteTakeMarker(activeTake, i)
                         end
-                        if markerType == sourceLabelOut then
+                        if markerType == srcLabelOut then
                             r.DeleteTakeMarker(activeTake, i)
                         end
                     end
@@ -586,7 +622,7 @@ function SplitItemAtDstGateIn()       -- split item at destination gate in, than
 
     r.Main_OnCommand(40927, 0)        -- Options: Enable auto-crossfade on split
     r.Main_OnCommand(40939, 0)        -- Track: Select track 01
-    r.GoToMarker(0, destinationIdxIn, false)
+    r.GoToMarker(0, dstIdxIn, false)
     local selectUnder = r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX")
     r.Main_OnCommand(selectUnder, 0)  -- Xenakios/SWS: Select items under edit cursor on selected tracks
     r.Main_OnCommand(40034, 0)        -- Item grouping: Select all items in groups
@@ -605,7 +641,7 @@ function SplitItemAtDstGateIn2()       -- split item at destination gate in, tha
 
     --r.Main_OnCommand(40927, 0)       -- Options: Enable auto-crossfade on split
     --r.Main_OnCommand(40939, 0)       -- Track: Select track 01
-    r.GoToMarker(0, destinationIdxIn, false)
+    r.GoToMarker(0, dstIdxIn, false)
     local selectUnder = r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX")
     r.Main_OnCommand(selectUnder, 0)   -- Xenakios/SWS: Select items under edit cursor on selected tracks
     r.Main_OnCommand(40034, 0)         -- Item grouping: Select all items in groups
