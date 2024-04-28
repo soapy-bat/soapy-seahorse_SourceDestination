@@ -116,7 +116,7 @@ function main()
     ToggleLockItemsInSourceLanes(1)
 
     PasteToTopLane()           -- paste source material
-    
+
     ToggleLockItemsInSourceLanes(0)
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
@@ -275,9 +275,47 @@ function MoveDstOut(difference_rx, dstOutPos_rx)
     local difference = difference_rx
     local dstOutPos = dstOutPos_rx
 
+    r.GoToMarker(0, dstIdxIn, false)
+    r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
+    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+
     r.GoToMarker(0, dstIdxOut, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
+    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40718, 0) -- Item: Select all items on selected tracks in current time selection
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    local itemsToCut = {}
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local mediaItem = r.GetSelectedMediaItem(0, i)
+
+        if mediaItem then
+
+            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+            if itemLane == 0 then
+                table.insert(itemsToCut, mediaItem)
+            end
+        end
+    end
+
+    for i = 1, #itemsToCut do
+        
+        local mediaItem = itemsToCut[i]
+
+        if mediaItem then
+            
+            local mediaTrack = r.GetMediaItem_Track(mediaItem)
+            r.DeleteTrackMediaItem(mediaTrack, mediaItem)
+            
+        end
+    end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
@@ -322,69 +360,37 @@ end
 
 -------------------------------------------------------------------
 
-function MoveDstOut2(difference_rx, dstOutPos_rx)
-
-    -- workaround: if items are moved using D_POSITION, ripple edit state is disregarded.
-    -- probably the one of the more efficient ways instead of moving every single item in the project using D_POSITION.
-
-    local difference = difference_rx
-    local dstOutPos = dstOutPos_rx
-
-    ToggleLockItemsInSourceLanes(1)
-
-    r.GoToMarker(0, dstIdxOut, false) -- place cursor at dst in
-    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
-
-    local currentCursorPos = r.GetCursorPosition()
-    r.SetEditCurPos(currentCursorPos + difference, false, false)
-
-    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
-
-    if difference > 0 then
-        r.Main_OnCommand(40200, 0)    -- Time selection: Insert empty space at time selection (moving later items)
-    elseif difference < 0 then
-        r.Main_OnCommand(40201, 0)    -- Time selection: Remove contents of time selection (moving later items)
-    else return end
-
-    ToggleLockItemsInSourceLanes(0)
-
-end
-
--------------------------------------------------------------------
-
 function GetItemsOnLane(flaggedGUID_rx)
 
     local flaggedGUID = flaggedGUID_rx
-  
+
     -- get media track and fixed lane of flagged item
     local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
     if not flaggedItem then return end
     local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
-  
+
     local mediaTrack = r.GetMediaItem_Track(flaggedItem)
     if not mediaTrack then return end
     local itemCount = r.CountTrackMediaItems(mediaTrack)
-  
+
     local tbl_laneItemsGUID = {}
-  
+
     for i = 0, itemCount - 1 do
-  
+
       local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
       if mediaItem then
-  
+
         local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-  
+
         if itemLane == flaggedLane then
           local newGUID = r.BR_GetMediaItemGUID(mediaItem)
           table.insert(tbl_laneItemsGUID, newGUID)
         end
-  
       end
-  
     end
-  
+
     return tbl_laneItemsGUID
-  
+
   end
 
 -------------------------------------------------------------------
@@ -611,12 +617,19 @@ function ToggleLockItemsInSourceLanes(lockState_rx)
 
   end
 
+-------------------------------------------------------------------
+
+function HealAllSplits()
+
+    r.Main_OnCommand(40182, 0) -- Select All
+    r.Main_OnCommand(40548, 0) -- Heal splits in items
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+  end
 
 --------------------------
 -- deprecated functions --
 --------------------------
-
--------------------------------------------------------------------
 
 function SplitItemAtDstGateIn()       -- split item at destination gate in, thanks chmaha <3
 
@@ -654,19 +667,10 @@ function SplitItemAtDstGateIn2()       -- split item at destination gate in, tha
 
 end
 
-------------------------------------------
-
-function SetCursorToSrcStart(srcStart)
-
-  r.SetEditCurPos(srcStart, false, false)
-
-end
-
 -------------------------------------------------------------------
 
--- Function to set a Razor Edit Area based on given start and end points
-
 function SetRazorEditToSourceGates(srcStart, srcEnd)
+-- Function to set a Razor Edit Area based on given start and end points
 
     if srcEnd <= srcStart then return false end
 
@@ -685,8 +689,8 @@ end
 
 -------------------------------------------------------------------
 
--- Function to search for take markers by name in selected items, allows for multiple sources
 function GetTakeMarkerPositionByName(name)
+-- Function to search for take markers by name in selected items, allows for multiple sources
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -716,16 +720,6 @@ function GetTakeMarkerPositionByName(name)
             end
         end
     end
-end
-
--------------------------------------------------------------------
-
-function HealAllSplits()
-
-  r.Main_OnCommand(40182, 0) -- Select All
-  r.Main_OnCommand(40548, 0) -- Heal splits in items
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-
 end
 
 --------------------------------
