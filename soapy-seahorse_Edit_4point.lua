@@ -73,7 +73,7 @@ function main()
 
     local cursorPos_origin = r.GetCursorPosition()
 
-    -- future routines (MoveDstOut) will deselect the item,
+    -- future routines (ShiftDestinationItems) will deselect the item,
     -- that's why we will get this one first:
     local sourceItem = r.GetSelectedMediaItem(0, 0)
     if not sourceItem then return end
@@ -96,7 +96,8 @@ function main()
     ---##### calculate offset and move items on comp lane accordingly #####---
 
     local destinationDifference = CalcDstOffset(sourceGateIn, sourceGateOut, dstInPos, dstOutPos)
-    MoveDstOut(destinationDifference, dstOutPos)
+    ClearDestinationArea(dstInPos, dstOutPos)
+    ShiftDestinationItems(destinationDifference, dstOutPos)
 
     ---##### continue src copy routine #####---
 
@@ -113,19 +114,14 @@ function main()
 
     ---##### paste source to destination #####---
 
-    ToggleLockItemsInSourceLanes(1)
-
     PasteToTopLane()           -- paste source material
-
-    ToggleLockItemsInSourceLanes(0)
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
     local cursorPos_end = r.GetCursorPosition()
 
     if bool_AutoCrossfade then
-        -- go to start of pasted item
-        r.GoToMarker(0, dstIdxIn, false)
+        r.GoToMarker(0, dstIdxIn, false) -- go to start of pasted item
         SetCrossfade(xfadeLen)
 
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
@@ -270,17 +266,16 @@ end
 
 -------------------------------------------------------------------
 
-function MoveDstOut(difference_rx, dstOutPos_rx)
+function ClearDestinationArea(selStart, selEnd)
 
-    local difference = difference_rx
-    local dstOutPos = dstOutPos_rx
+    r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
 
-    r.GoToMarker(0, dstIdxIn, false)
+    r.SetEditCurPos(selStart, false, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
     r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
 
-    r.GoToMarker(0, dstIdxOut, false)
+    r.SetEditCurPos(selEnd, false, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
     r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
@@ -306,16 +301,28 @@ function MoveDstOut(difference_rx, dstOutPos_rx)
     end
 
     for i = 1, #itemsToCut do
-        
+
         local mediaItem = itemsToCut[i]
 
         if mediaItem then
-            
+
             local mediaTrack = r.GetMediaItem_Track(mediaItem)
             r.DeleteTrackMediaItem(mediaTrack, mediaItem)
-            
+
         end
     end
+
+    r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
+    HealAllSplits()
+
+end
+
+-------------------------------------------------------------------
+
+function ShiftDestinationItems(difference_rx, dstOutPos_rx)
+
+    local difference = difference_rx
+    local dstOutPos = dstOutPos_rx
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
