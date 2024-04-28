@@ -55,7 +55,7 @@ local dstIdxOut = 997
 function main()
 
     r.Undo_BeginBlock()
-    --r.PreventUIRefresh(1)
+    r.PreventUIRefresh(1)
 
     ---######### START ##########---
 
