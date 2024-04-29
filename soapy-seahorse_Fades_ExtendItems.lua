@@ -24,6 +24,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
+local bool_KeepCursorPosition = true
+
 local extensionAmount = 1      -- time that the items get extended by, in seconds
 local cursorBias = 0.5         -- 0, ..., 1 /// 0.5: center of fade
 
@@ -50,6 +52,8 @@ function main()
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
+  local curPos = r.GetCursorPosition()
+
   local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
   r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
   r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
@@ -58,6 +62,10 @@ function main()
 
   local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
   r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
+
+  if bool_KeepCursorPosition then
+    r.SetEditCurPos(curPos, false, false)
+  end
 
   r.PreventUIRefresh(-1)
   r.UpdateArrange()
