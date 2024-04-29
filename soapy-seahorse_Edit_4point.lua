@@ -402,7 +402,7 @@ function GetItemsOnLane(flaggedGUID_rx)
 
 -------------------------------------------------------------------
 
-function RemoveSourceGates()
+function RemoveSourceGates_old()
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
 
