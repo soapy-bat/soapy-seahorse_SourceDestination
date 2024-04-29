@@ -34,4 +34,3 @@ The seahorse scripts provide tools for two multitrack workflows using REAPER:
 
 # Credits
 - copyright 2024 the soapy zoo
-- copyleft [chmaha](https://chmaha.github.io/ReaClassical/)
