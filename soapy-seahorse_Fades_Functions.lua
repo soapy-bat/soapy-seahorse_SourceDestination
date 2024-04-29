@@ -365,7 +365,7 @@ function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmoun
   local bool_success = false
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.SetMediaItemSelected(mediaItem, 1)
+  r.SetMediaItemSelected(mediaItem, true)
   r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
   
   local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
@@ -678,7 +678,7 @@ function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
   if not mediaItem then return end
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
-  r.SetMediaItemSelected(mediaItem, 1)
+  r.SetMediaItemSelected(mediaItem, true)
   r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
   local muteState
