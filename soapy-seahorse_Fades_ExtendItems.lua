@@ -6,7 +6,6 @@ This script is part of the soapy-seahorse package.
 It requires the file "soapy-seahorse_Fades_Functions.lua"
 
 (C) 2024 the soapy zoo
-copyleft: chmaha
 thanks: fricia, X-Raym, GPT3.5
 
 This program is free software: you can redistribute it and/or modify
@@ -25,7 +24,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local extensionAmount = 2              -- time that the items get extended by, in seconds
+local extensionAmount = 1      -- time that the items get extended by, in seconds
 local cursorBias = 0.5         -- 0, ..., 1 /// 0.5: center of fade
 
 ---------------
