@@ -319,7 +319,7 @@ function so.RemoveSourceGates(safeLane_rx, sourceLabelIn_rx, sourceLabelOut_rx)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
-    r.SelectAllMediaItems(0, 1)
+    r.SelectAllMediaItems(0, true)
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
 
@@ -420,7 +420,7 @@ function so.ToggleLockItemsInSourceLanes(lockState_rx)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
-    r.SelectAllMediaItems(0, 1)
+    r.SelectAllMediaItems(0, true)
 
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
 

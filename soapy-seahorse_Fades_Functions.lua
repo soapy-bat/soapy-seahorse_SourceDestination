@@ -131,12 +131,12 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   for i = 1, range do
 
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + (i * auditionTarget)])
+    local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + (i * auditionTarget)])
     neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     table.insert(tbl_neighborGUID, r.BR_GetMediaItemGUID(mediaItem))
 
   end
-  
+
   return neighborGUID, tbl_neighborGUID
 
 end
@@ -743,14 +743,14 @@ function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
 
   if mouseTarget == 1 then
   
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
+    local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex + 1])
     local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
     return neighborGUID
     
   elseif mouseTarget == 2 then
   
-    mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
+    local mediaItem = r.BR_GetMediaItemByGUID(0, tbl_laneItemsGUID[flaggedIndex - 1])
     local neighborGUID = r.BR_GetMediaItemGUID(mediaItem)
     
     return neighborGUID
