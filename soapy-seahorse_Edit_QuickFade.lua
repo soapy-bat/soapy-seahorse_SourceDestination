@@ -51,7 +51,7 @@ function main()
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
 
-    -- ## get & select items, cursor position ## --
+    -- ## get & select items, get cursor position ## --
 
     if bool_TargetMouseInsteadOfCursor then
         r.Main_OnCommand(40514, 0) -- View: Move edit cursor to mouse cursor (no snapping)
