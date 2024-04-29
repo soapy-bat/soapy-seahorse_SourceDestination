@@ -51,27 +51,17 @@ function main()
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
 
-    -- ## get & select items, get cursor position ## --
+    local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
+    r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
+    r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
+
+    -- ## get / set cursor position ## --
 
     if bool_TargetMouseInsteadOfCursor then
         r.Main_OnCommand(40514, 0) -- View: Move edit cursor to mouse cursor (no snapping)
     end
 
     local curPos = r.GetCursorPosition()
-
-    local _, item1GUID, item2GUID, _ = sf.GetItemsNearMouse(cursorBias)
-    if not item1GUID then return end
-    if not item2GUID then return end
-
-    local mediaItem1 = r.BR_GetMediaItemByGUID(0, item1GUID)
-    local mediaItem2 = r.BR_GetMediaItemByGUID(0, item2GUID)
-    if not mediaItem1 then return end
-    if not mediaItem2 then return end
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-
-    r.SetMediaItemSelected(mediaItem1, true)
-    r.SetMediaItemSelected(mediaItem2, true)
 
     -- ## set time selection ## --
 
@@ -83,13 +73,36 @@ function main()
     r.SetEditCurPos(curPos + xfadeLen/2, false, false)
     r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
 
+    -- ## get items ## --
+
+    local _, item1GUID, item2GUID, _ = sf.GetItemsNearMouse(cursorBias)
+    if not item1GUID then Cleanup(curPos) return end
+    if not item2GUID then Cleanup(curPos) return end
+
+    local mediaItem1 = r.BR_GetMediaItemByGUID(0, item1GUID)
+    local mediaItem2 = r.BR_GetMediaItemByGUID(0, item2GUID)
+    if not mediaItem1 then Cleanup(curPos) return end
+    if not mediaItem2 then Cleanup(curPos) return end
+
     -- ## manipulate items in order to be able to fade ## --
     local item1Start = r.GetMediaItemInfo_Value(mediaItem1, "D_POSITION")
     local item1Len = r.GetMediaItemInfo_Value(mediaItem1, "D_LENGTH")
     local item1End = item1Start + item1Len
 
     if item1End < (curPos - xfadeLen/2) then
-        r.BR_SetItemEdges(mediaItem1, item1Start, curPos)
+
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.SetMediaItemSelected(mediaItem1, true)
+        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+        for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+            local selItem = r.GetSelectedMediaItem(0, i)
+
+            if selItem then
+                r.BR_SetItemEdges(selItem, item1Start, curPos)
+            end
+        end
     end
 
     local item2Start = r.GetMediaItemInfo_Value(mediaItem2, "D_POSITION")
@@ -97,19 +110,52 @@ function main()
     local item2End = item2Start + item2Len
 
     if item2Start > (curPos + xfadeLen/2) then
-        r.BR_SetItemEdges(mediaItem2, curPos, item2End)
+
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.SetMediaItemSelected(mediaItem2, true)
+        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+        for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+            local selItem = r.GetSelectedMediaItem(0, i)
+
+            if selItem then
+                r.BR_SetItemEdges(selItem, curPos, item2End)
+            end
+        end
+
     end
 
+    -- ## select items ## --
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+    r.SetMediaItemSelected(mediaItem1, true)
+    r.SetMediaItemSelected(mediaItem2, true)
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
     -- ## perform fade (amagalma: smart crossfade) ## --
-    r.Main_OnCommand(r.NamedCommandLookup("_RSabf54948a2041f5c9ae0f28267706b226a23b598"), 0)
+
+    --r.Main_OnCommand(r.NamedCommandLookup("_RSabf54948a2041f5c9ae0f28267706b226a23b598"), 0)
+    r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
 
     -- ## clean up ## --
-
-    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
+    Cleanup(curPos)
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
     r.Undo_EndBlock("ReaPyr Quick Fade", 0)
+
+end
+
+function Cleanup(curPos)
+
+    local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
+    r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
+
+    r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetEditCurPos(curPos, false, false)
 
 end
 
