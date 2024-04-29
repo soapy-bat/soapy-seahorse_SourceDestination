@@ -55,7 +55,7 @@ function main()
   r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
   r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
 
-  ExtendRestoreItems(scriptCommand, newToggleState)
+  ExtendRestoreItems(_, newToggleState)
 
   local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
   r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -77,6 +77,7 @@ end
 
 function ExtendRestoreItems(scriptCommand_rx, newToggleState_rx)
 
+  local scriptCommand = scriptCommand_rx
   local newToggleState = newToggleState_rx
 
   --r.SetToggleCommandState(1, scriptCommand_rx, newToggleState)
