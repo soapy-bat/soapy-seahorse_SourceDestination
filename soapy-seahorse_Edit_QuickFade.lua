@@ -24,6 +24,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -------------------
 
 local bool_TargetMouseInsteadOfCursor = true
+local bool_SelectRightItemAtCleanup = true
+local bool_PreserveFadeLength = true
 
 local xfadeLen = 0.05                            -- default: 50 milliseconds (0.05)
 local cursorBias = 1                             -- 0, ..., 1 /// 0.5: center of fade
@@ -140,7 +142,8 @@ function main()
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
 
     -- ## clean up ## --
-    Cleanup(curPos)
+
+    Cleanup(curPos, mediaItem1, mediaItem2)
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
@@ -148,13 +151,18 @@ function main()
 
 end
 
-function Cleanup(curPos)
+function Cleanup(curPos, mediaItem1, mediaItem2)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
+
     r.Main_OnCommand(40289, 0) -- Deselect all items
+    if bool_SelectRightItemAtCleanup then
+        r.SetMediaItemSelected(mediaItem2, true)
+    end
+
     r.SetEditCurPos(curPos, false, false)
 
 end
