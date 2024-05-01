@@ -24,11 +24,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local bool_KeepCursorPosition = true
-local bool_SelectRightItemAtCleanup = true
+local bool_KeepCursorPosition = true        -- if false, cursor will jump to the center between items
+local bool_SelectRightItemAtCleanup = true  -- keeps right item selected after script finished manipulating the items
+local bool_AvoidCollision = true            -- experimental: avoids overlap of more than 2 items by adjusting the amout of extension automatically (if the items to be extended are very short)
 
-local extensionAmount = 1      -- time that the items get extended by, in seconds
-local cursorBias = 0.5         -- 0, ..., 1 /// 0.5: center of fade
+local extensionAmount = 0.5                 -- time that the items get extended by, in seconds
+local collisionPadding = 0.001              -- leaves a tiny gap if collision detection is on
+local cursorBias = 0.5                      -- 0, ..., 1 /// 0.5: center of fade
 
 ---------------
 -- variables --
@@ -57,11 +59,10 @@ function main()
   r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
   r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
 
-  local item1GUID, item2GUID = ExtendRestoreItems(_, 1)
+  local item1GUID, item2GUID = ExtendItems(_, 1)
 
   if bool_SelectRightItemAtCleanup then
 
-    local mediaItem1 = r.BR_GetMediaItemByGUID(0, item1GUID)
     local mediaItem2 = r.BR_GetMediaItemByGUID(0, item2GUID)
     if not mediaItem2 then return end
 
@@ -87,40 +88,94 @@ end
 -- utils --
 -----------
 
-function ExtendRestoreItems(scriptCommand_rx, newToggleState_rx)
+function ExtendItems(scriptCommand_rx, newToggleState_rx)
 
-  local scriptCommand = scriptCommand_rx
-  local newToggleState = newToggleState_rx
-
+  -- ## get items ## --
   local itemGUID = {}
-  local bool_success = false
+  _, itemGUID[1], itemGUID[2] = so.GetItemsNearMouse(cursorBias)
 
-  bool_success, itemGUID[1], itemGUID[2] = so.GetItemsNearMouse(cursorBias)
+  -- ## extend items ## --
+  local mediaItem = {}
+
+  mediaItem[1] = r.BR_GetMediaItemByGUID(0, itemGUID[1])
+  mediaItem[2] = r.BR_GetMediaItemByGUID(0, itemGUID[2])
+
+  if not mediaItem[1] or not mediaItem[2] then
+    r.ShowMessageBox("Please hover the mouse over an item in order to extend / restore items.", "Item Extender unsuccessful", 0)
+    return
+  end
+
+  if bool_AvoidCollision then
+
+    -- ## avoid collision: get item edges ## --
+    local itemStart, itemEnd, itemFade = {}, {}, {}
+
+    itemStart[1], _, itemEnd[1] = GetItemStartLengthEnd(mediaItem[1])
+    itemStart[2], _, itemEnd[2] = GetItemStartLengthEnd(mediaItem[2])
+
+    itemFade[1], _ = GetItemLargestFade(mediaItem[1])
+    _, itemFade[2] = GetItemLargestFade(mediaItem[2])
+
+    local gapLeft = itemStart[2] - itemStart[1] - itemFade[1] - collisionPadding
+    local gapRight = itemEnd[2] - itemEnd[1] - itemFade[2] - collisionPadding
+
+    -- ## avoid collision: calculate ## --
+
+    local smallestGap
+    if gapLeft < gapRight then
+      smallestGap = gapLeft
+    else
+      smallestGap = gapRight
+    end
+
+    if smallestGap < extensionAmount then -- avoid crashing left item's end into right item's end
+      extensionAmount = smallestGap
+    end
+
+  end
+
+  local bool_success = so.LenghtenItem(mediaItem[1], 1, 1, extensionAmount)
+  bool_success = so.LenghtenItem(mediaItem[2], 2, 1, extensionAmount)
 
   if bool_success then
-
-    local mediaItem = {}
-
-    for i = 1, 2 do
-      mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
-      if mediaItem[i] then
-        if newToggleState == 0 then
-          newToggleState = -1
-        end
-        bool_success = so.LenghtenItem(mediaItem[i], i, newToggleState, extensionAmount)
-      end
-    end
-
-    if bool_success then
-      return itemGUID[1], itemGUID[2]
-    else
-      r.ShowMessageBox("Item Extender unsuccessful.", "sorry!", 0)
-      return
-    end
-
+    return itemGUID[1], itemGUID[2]
   else
-    r.ShowMessageBox("Please hover the mouse over an item in order to extend / restore items.", "Item Extender unsuccessful", 0)
+    r.ShowMessageBox("Item Extender unsuccessful.", "sorry!", 0)
+    return
   end
+
+end
+
+------------------------------------------------
+
+function GetItemStartLengthEnd(mediaItem)
+
+  local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+  local itemLength = r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+  local itemEnd = itemStart + itemLength
+
+  return itemStart, itemLength, itemEnd
+
+end
+
+------------------------------------------------
+
+function GetItemLargestFade(mediaItem)
+
+  local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
+  local fadeInLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
+  local fadeOutLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
+  local fadeOutLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
+
+  if fadeInLen < fadeInLenAuto then
+    fadeInLen = fadeInLenAuto
+  end
+
+  if fadeOutLen < fadeOutLenAuto then
+    fadeOutLen = fadeOutLenAuto
+  end
+
+  return fadeInLen, fadeOutLen
 
 end
 

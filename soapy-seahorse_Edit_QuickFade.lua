@@ -23,9 +23,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local bool_TargetMouseInsteadOfCursor = true
-local bool_SelectRightItemAtCleanup = true
-local bool_PreserveFadeLength = true
+local bool_TargetMouseInsteadOfCursor = true    -- true: sets fade at mouse cursor. false: sets fade at edit cursor
+local bool_SelectRightItemAtCleanup = true      -- keeps right item selected after execution of the script
+local bool_PreserveFadeLength = true            -- experimental, sets a fade of the same length if there already is a crossfade
 
 local xfadeLen = 0.05                            -- default: 50 milliseconds (0.05)
 local cursorBias = 1                             -- 0, ..., 1 /// 0.5: center of fade
@@ -65,16 +65,6 @@ function main()
 
     local curPos = r.GetCursorPosition()
 
-    -- ## set time selection ## --
-
-    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
-
-    r.SetEditCurPos(curPos - xfadeLen/2, false, false)
-    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
-
-    r.SetEditCurPos(curPos + xfadeLen/2, false, false)
-    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
-
     -- ## get items ## --
 
     local _, item1GUID, item2GUID, _ = sf.GetItemsNearMouse(cursorBias)
@@ -86,12 +76,43 @@ function main()
     if not mediaItem1 then Cleanup(curPos) return end
     if not mediaItem2 then Cleanup(curPos) return end
 
+    -- ## get fade length ## --
+    if bool_PreserveFadeLength then
+        local item1FadeLen = r.GetMediaItemInfo_Value(mediaItem1, "D_FADEOUTLEN")
+        local item1FadeLenAuto = r.GetMediaItemInfo_Value(mediaItem1, "D_FADEOUTLEN_AUTO")
+
+        local item2FadeLen = r.GetMediaItemInfo_Value(mediaItem2, "D_FADEINLEN")
+        local item2FadeLenAuto = r.GetMediaItemInfo_Value(mediaItem2, "D_FADEINLEN_AUTO")
+
+        if item1FadeLen < item1FadeLenAuto then
+            item1FadeLen = item1FadeLenAuto
+        end
+
+        if item2FadeLen < item2FadeLenAuto then
+            item2FadeLen = item2FadeLenAuto
+        end
+
+        if item1FadeLen == item2FadeLen then
+            xfadeLen = item1FadeLen
+        end
+    end
+
+    -- ## set time selection ## --
+
+    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
+
+    r.SetEditCurPos(curPos - xfadeLen/2, false, false)
+    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+
+    r.SetEditCurPos(curPos + xfadeLen/2, false, false)
+    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
+
     -- ## manipulate items in order to be able to fade ## --
     local item1Start = r.GetMediaItemInfo_Value(mediaItem1, "D_POSITION")
     local item1Len = r.GetMediaItemInfo_Value(mediaItem1, "D_LENGTH")
     local item1End = item1Start + item1Len
 
-    if item1End < (curPos - xfadeLen/2) then
+    if item1End < curPos then
 
         r.Main_OnCommand(40289, 0) -- Deselect all items
         r.SetMediaItemSelected(mediaItem1, true)
@@ -111,7 +132,7 @@ function main()
     local item2Len = r.GetMediaItemInfo_Value(mediaItem2, "D_LENGTH")
     local item2End = item2Start + item2Len
 
-    if item2Start > (curPos + xfadeLen/2) then
+    if item2Start > curPos then
 
         r.Main_OnCommand(40289, 0) -- Deselect all items
         r.SetMediaItemSelected(mediaItem2, true)
