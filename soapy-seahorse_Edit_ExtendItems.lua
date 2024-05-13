@@ -60,6 +60,7 @@ function main()
   r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
 
   local item1GUID, item2GUID = ExtendItems(_, 1)
+  if not item1GUID or not item2GUID then return end
 
   if bool_SelectRightItemAtCleanup then
 
@@ -91,18 +92,18 @@ end
 function ExtendItems(scriptCommand_rx, newToggleState_rx)
 
   -- ## get items ## --
-  local itemGUID = {}
-  _, itemGUID[1], itemGUID[2] = so.GetItemsNearMouse(cursorBias)
+  local _, _, _, _, itemGUID = so.GetItemsNearMouse(cursorBias, 1)
 
   -- ## extend items ## --
   local mediaItem = {}
-
-  mediaItem[1] = r.BR_GetMediaItemByGUID(0, itemGUID[1])
-  mediaItem[2] = r.BR_GetMediaItemByGUID(0, itemGUID[2])
-
-  if not mediaItem[1] or not mediaItem[2] then
-    r.ShowMessageBox("Please hover the mouse over an item in order to extend / restore items.", "Item Extender unsuccessful", 0)
-    return
+  for i = 1, #itemGUID do
+    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
+  end
+  for i = 1, #mediaItem do
+    if not mediaItem[i] then
+      r.ShowMessageBox("Please hover the mouse over an item in order to extend / restore items.", "Item Extender unsuccessful", 0)
+      return
+    end
   end
 
   if bool_AvoidCollision then
@@ -116,7 +117,9 @@ function ExtendItems(scriptCommand_rx, newToggleState_rx)
     itemFade[1], _ = GetItemLargestFade(mediaItem[1])
     _, itemFade[2] = GetItemLargestFade(mediaItem[2])
 
+    -- avoid crashing right item's starts into left item's start
     local gapLeft = itemStart[2] - itemStart[1] - itemFade[1] - collisionPadding
+    -- avoid crashing left item's end into right item's end
     local gapRight = itemEnd[2] - itemEnd[1] - itemFade[2] - collisionPadding
 
     -- ## avoid collision: calculate ## --
@@ -128,7 +131,7 @@ function ExtendItems(scriptCommand_rx, newToggleState_rx)
       smallestGap = gapRight
     end
 
-    if smallestGap < extensionAmount then -- avoid crashing left item's end into right item's end
+    if smallestGap < extensionAmount then
       extensionAmount = smallestGap
     end
 
@@ -192,7 +195,6 @@ end
 -- deprecated functions --
 --------------------------
 
-
 function ToggleExtender_old()
 
   r.Undo_BeginBlock()
@@ -217,7 +219,7 @@ function ToggleExtender_old()
     r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
   end
 
-  ExtendRestoreItems(scriptCommand, newToggleState)
+  ExtendItems(scriptCommand, newToggleState)
 
   -- #### --
 

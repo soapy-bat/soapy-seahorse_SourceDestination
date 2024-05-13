@@ -31,23 +31,26 @@ local so = {}
 -- functions: information retrieval (get) --
 --------------------------------------------
 
-function so.GetItemsNearMouse(cursorBias_rx)
-
-  local bool_success = false
+function so.GetItemsNearMouse(cursorBias_rx, range_rx)
 
   local cursorBias = cursorBias_rx
+  local range = range_rx
+  if not range then
+    range = 1
+  end
 
+  local bool_success = false
   local tbl_itemGUID = {}
 
   -- mouseX and transport location are compatible
-  
+
   -- Berücksichtigung der Position nur, wenn Maus auf Item ist
   local mediaItem, mouseX = r.BR_ItemAtMouseCursor()
   if not mediaItem then return false end
-  
+
   local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
   local itemEnd = itemStart + r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
-  
+
   local distanceToStart = math.abs(mouseX - itemStart)
   local distanceToEnd = math.abs(itemEnd - mouseX)
 
@@ -64,7 +67,16 @@ function so.GetItemsNearMouse(cursorBias_rx)
   end
 
   tbl_itemGUID[pri] = r.BR_GetMediaItemGUID(mediaItem)
-  tbl_itemGUID[sec], _ = so.GetNeighbors(tbl_itemGUID[pri], pri, 1)
+  if range == 1 then
+    tbl_itemGUID[sec], _ = so.GetNeighbors(tbl_itemGUID[pri], pri, range)
+  else
+    _, tbl_itemGUID = so.GetNeighbors(tbl_itemGUID[pri], pri, range)
+  end
+
+  if not tbl_itemGUID then
+    bool_success = false
+    return bool_success
+  end
 
   if tbl_itemGUID[1] == tbl_itemGUID[2] then
     r.ShowMessageBox("You probably tried to audition the last fade of the project, which is not (yet) supported.", "No fade to audition", 0)
@@ -73,7 +85,7 @@ function so.GetItemsNearMouse(cursorBias_rx)
 
   bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
 
-  return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], pri
+  return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], pri, tbl_itemGUID
 
 end
 
