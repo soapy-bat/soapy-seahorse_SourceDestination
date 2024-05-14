@@ -28,18 +28,24 @@ local xfadeLen = 0.05                           -- default: 50 milliseconds (0.0
 
 local bool_AutoCrossfade = true                 -- fade newly edited items
 
-local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
+local bool_MoveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
 
-local bool_removeAllSourceGates = false         -- remove all source gates after the edit
+local bool_RemoveAllSourceGates = false         -- remove all source gates after the edit
 
 local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
 
+local bool_KeepLaneSolo = true                  -- if false, lane solo jumps to comp lane after the edit
+                                                -- if multiple lanes were soloed, only last soloed lane will be selected
 
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
+
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "?.lua"
+local so = require("soapy-seahorse_Edit_Functions")
 
 local srcLabelIn = "SRC_IN"
 local srcLabelOut = "SRC_OUT"
@@ -52,7 +58,7 @@ local dstIdxOut = 997
 -- main --
 ----------
 
-function main()
+function Main()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -92,6 +98,11 @@ function main()
 
     local targetTrack = r.GetMediaItem_Track(sourceItem)
     r.SetOnlyTrackSelected(targetTrack)
+
+    local tbl_PlayingLanes
+    if bool_KeepLaneSolo then
+        tbl_PlayingLanes = so.GetLanesPlaying(targetTrack)
+    end
 
     ---##### calculate offset and move items on comp lane accordingly #####---
 
@@ -134,12 +145,12 @@ function main()
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
     end
 
-    if bool_moveDstGateAfterEdit then
+    if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
         SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
     end
 
-    if bool_removeAllSourceGates then
+    if bool_RemoveAllSourceGates then
         RemoveSourceGates(0)
     end
 
@@ -148,6 +159,10 @@ function main()
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
+    if bool_KeepLaneSolo then
+        so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
+    end
+    
     ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
@@ -733,4 +748,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-main()
+Main()

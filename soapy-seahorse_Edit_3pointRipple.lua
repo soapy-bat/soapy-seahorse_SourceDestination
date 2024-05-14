@@ -32,10 +32,10 @@ local so = require("soapy-seahorse_Edit_Functions")
 -- main --
 ----------
 
-function main()
+function Main()
 
     so.ThreePointEdit(true)
 
 end
 
-main()
+Main()

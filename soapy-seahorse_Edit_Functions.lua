@@ -30,12 +30,14 @@ local xfadeLen = 0.05                           -- default: 50 milliseconds (0.0
 
 local bool_AutoCrossfade = true                 -- fade newly edited items
 
-local bool_moveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
+local bool_MoveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
 
-local bool_removeAllSourceGates = false         -- remove all source gates after the edit
+local bool_RemoveAllSourceGates = false         -- remove all source gates after the edit
 
 local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
 
+local bool_KeepLaneSolo = true                  -- if false, lane solo jumps to comp lane after the edit
+                                                -- if multiple lanes were soloed, only last soloed lane will be selected
 
 ---------------
 -- variables --
@@ -93,6 +95,11 @@ function so.ThreePointEdit(bool_Ripple)
 
     local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
 
+    local tbl_PlayingLanes
+    if bool_KeepLaneSolo then
+        tbl_PlayingLanes = so.GetLanesPlaying(targetTrack)
+    end
+
     ---##### src copy routine #####---
 
     r.SetOnlyTrackSelected(targetTrack)
@@ -132,17 +139,21 @@ function so.ThreePointEdit(bool_Ripple)
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
     end
 
-    if bool_moveDstGateAfterEdit then
+    if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
         so.SetDstGateIn(dstLabelIn, dstIdxIn)  -- move destination gate in to end of pasted material (assembly line style)
     end
 
-    if bool_removeAllSourceGates then
+    if bool_RemoveAllSourceGates then
         so.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
+
+    if bool_KeepLaneSolo then
+        so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
+    end
 
     so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
@@ -163,6 +174,68 @@ end
 -----------
 -- utils --
 -----------
+
+
+function so.GetLanesPlaying(selTrack)
+
+    local tbl_PlayingLanes = {}
+
+    local numLanes =  r.GetMediaTrackInfo_Value(selTrack, "I_NUMFIXEDLANES")
+
+    for i = 0, numLanes - 1 do
+
+        local parmName = tostring("C_LANEPLAYS:" .. i)
+        local activeLane = r.GetMediaTrackInfo_Value(selTrack, parmName)
+
+        if activeLane == 1 or activeLane == 2 then
+            table.insert(tbl_PlayingLanes, i)
+        end
+
+    end
+
+    return tbl_PlayingLanes
+
+end
+
+-------------------------------------------------------------------
+
+function so.SetLanesPlaying(selTrack, tbl_PlayingLanes)
+
+    local numLanes =  r.GetMediaTrackInfo_Value(selTrack, "I_NUMFIXEDLANES")
+
+    if #tbl_PlayingLanes > 1 then
+
+        for i = 0, numLanes - 1 do
+
+            local parmName = tostring("C_LANEPLAYS:" .. i)
+            local laneIsActive = false
+
+            for h = 1, #tbl_PlayingLanes do
+                if i == tbl_PlayingLanes[h] then
+                    laneIsActive = true
+                else
+                    laneIsActive = false
+                end
+            end
+
+            if laneIsActive then
+                r.SetMediaTrackInfo_Value(selTrack, parmName, 2)
+            else
+                r.SetMediaTrackInfo_Value(selTrack, parmName, 0)
+            end
+
+        end
+
+    elseif #tbl_PlayingLanes == 1 then
+
+        local parmName = tostring("C_LANEPLAYS:" .. tbl_PlayingLanes[1])
+        r.SetMediaTrackInfo_Value(selTrack, parmName, 1)
+
+    end
+
+end
+
+-------------------------------------------------------------------
 
 function so.GetSourceGate(sourceItem_rx, markerLabel_rx) -- Find SRC_OUT marker
     local sourceItem = sourceItem_rx
