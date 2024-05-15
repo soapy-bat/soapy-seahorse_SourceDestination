@@ -175,7 +175,6 @@ end
 -- utils --
 -----------
 
-
 function so.GetLanesPlaying(selTrack)
 
     local tbl_PlayingLanes = {}
@@ -306,9 +305,7 @@ function so.PasteToTopLane(dstInIdx_rx)
 
     r.GoToMarker(0, dstInIdx, false)
     r.Main_OnCommand(42790, 0) -- play only first lane
-    r.Main_OnCommand(43098, 0) -- show/play only one lane
     r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
-    r.Main_OnCommand(43099, 0) -- show/play all lanes
 
 end
 
