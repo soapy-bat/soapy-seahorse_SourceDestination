@@ -79,6 +79,8 @@ function so.ThreePointEdit(bool_Ripple)
     ---##### get coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
+    local timeSelStart, timeSelEnd = so.GetTimeSelection()
+    local loopStart, loopEnd = so.GetLoopPoints()
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -155,6 +157,9 @@ function so.ThreePointEdit(bool_Ripple)
         so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
     end
 
+    so.SetTimeSelection(timeSelStart, timeSelEnd)
+    so.SetLoopPoints(loopStart, loopEnd)
+
     so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
@@ -174,6 +179,82 @@ end
 -----------
 -- utils --
 -----------
+
+function so.GetTimeSelection()
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(40630, 0) -- Go to start of time selection
+    local timeSelStart = r.GetCursorPosition()
+
+    r.Main_OnCommand(40631, 0) -- Go to end of time selection
+    local timeSelEnd = r.GetCursorPosition()
+
+    r.SetEditCurPos(curPos, false, false)
+
+    return timeSelStart, timeSelEnd
+
+end
+
+-------------------------------------------
+
+function so.SetTimeSelection(timeSelStart, timeSelEnd)
+
+    if not timeSelStart or not timeSelEnd then return end
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(40635, 0) -- Time selection: Remove (unselect) time selection
+
+    r.SetEditCurPos(timeSelStart, false, false)
+    r.Main_OnCommand(40625, 0) -- Time selection: Set start point
+
+    r.SetEditCurPos(timeSelEnd, false, false)
+    r.Main_OnCommand(40626, 0) -- Time selection: Set end point
+
+    r.SetEditCurPos(curPos, false, false)
+
+end
+
+-------------------------------------------
+
+function so.GetLoopPoints()
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(40632, 0) -- Go to start of loop
+    local loopStart = r.GetCursorPosition()
+
+    r.Main_OnCommand(40633, 0) -- Go to end of loop
+    local loopEnd = r.GetCursorPosition()
+
+    r.SetEditCurPos(curPos, false, false)
+
+    return loopStart, loopEnd
+
+end
+
+-------------------------------------------
+
+function so.SetLoopPoints(loopStart, loopEnd)
+
+    if not loopStart or not loopEnd then return end
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(40634, 0) -- Loop points: Remove (unselect) loop point selection
+
+    r.SetEditCurPos(loopStart, false, false)
+    r.Main_OnCommand(40222, 0) -- Loop points: Set start point
+
+    r.SetEditCurPos(loopEnd, false, false)
+    r.Main_OnCommand(40223, 0) -- Loop points: Set end point
+
+    r.SetEditCurPos(curPos, false, false)
+
+end
+
+-------------------------------------------
 
 function so.GetLanesPlaying(selTrack)
 

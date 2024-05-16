@@ -26,6 +26,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 local bool_TargetMouseInsteadOfCursor = true    -- true: sets fade at mouse cursor. false: sets fade at edit cursor
 local bool_SelectRightItemAtCleanup = true      -- keeps right item selected after execution of the script
 local bool_PreserveExistingCrossfade = true     -- experimental, sets a fade of the same length if there already is a crossfade
+local bool_PreserveEditCursorPosition = true    -- false: keeps edit cursor in original position. true: moves cursor to center of new fade
 
 local xFadeLen = 0.05                            -- default: 50 milliseconds (0.05)
 local xFadeShape = 1                             -- default: equal power
@@ -49,7 +50,7 @@ local se = require("soapy-seahorse_Edit_Functions")
 -- main --
 ----------
 
-function main()
+function Main()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -57,6 +58,10 @@ function main()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
     r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
+
+    local curPosOrigin = r.GetCursorPosition()
+    local timeSelStart, timeSelEnd = se.GetTimeSelection()
+    local loopStart, loopEnd = se.GetLoopPoints()
 
     -- ## get / set cursor position ## --
 
@@ -113,7 +118,7 @@ function main()
 
     -- ## clean up ## --
 
-    Cleanup(tbl_mediaItem, curPos)
+    Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, loopStart, loopEnd)
 
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
@@ -278,12 +283,10 @@ end
 
 -------------------------------------------
 
-function Cleanup(tbl_mediaItem, curPos)
+function Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, loopStart, loopEnd)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
-
-    r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     if bool_SelectRightItemAtCleanup then
@@ -292,7 +295,16 @@ function Cleanup(tbl_mediaItem, curPos)
         end
     end
 
-    r.SetEditCurPos(curPos, false, false)
+    r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
+
+    se.SetTimeSelection(timeSelStart, timeSelEnd)
+    se.SetLoopPoints(loopStart, loopEnd)
+
+    if bool_PreserveEditCursorPosition then
+        r.SetEditCurPos(curPosOrigin, false, false)
+    else
+        r.SetEditCurPos(curPos, false, false)
+    end
 
 end
 
@@ -300,4 +312,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-main()
+Main()

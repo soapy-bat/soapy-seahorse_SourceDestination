@@ -78,6 +78,8 @@ function Main()
     ---##### get all coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
+    local timeSelStart, timeSelEnd = so.GetTimeSelection()
+    local loopStart, loopEnd = so.GetLoopPoints()
 
     -- future routines (ShiftDestinationItems) will deselect the item,
     -- that's why we will get this one first:
@@ -162,7 +164,10 @@ function Main()
     if bool_KeepLaneSolo then
         so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
     end
-    
+
+    so.SetTimeSelection(timeSelStart, timeSelEnd)
+    so.SetLoopPoints(loopStart, loopEnd)
+
     ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
