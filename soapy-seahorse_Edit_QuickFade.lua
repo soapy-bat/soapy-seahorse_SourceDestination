@@ -74,8 +74,8 @@ function Main()
     -- ## get items ## --
 
     local _, item1GUID, item2GUID, _ = sf.GetItemsNearMouse(cursorBias)
-    if not item1GUID then Cleanup(curPos) return end
-    if not item2GUID then Cleanup(curPos) return end
+    if not item1GUID then Cleanup(_, curPos, curPosOrigin) return end
+    if not item2GUID then Cleanup(_, curPos, curPosOrigin) return end
 
     local tbl_mediaItem = {}
     table.insert(tbl_mediaItem, r.BR_GetMediaItemByGUID(0, item1GUID))
@@ -288,13 +288,6 @@ function Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-    if bool_SelectRightItemAtCleanup then
-        if tbl_mediaItem[2] then
-            r.SetMediaItemSelected(tbl_mediaItem[2], true)
-        end
-    end
-
     r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
 
     se.SetTimeSelection(timeSelStart, timeSelEnd)
@@ -305,6 +298,20 @@ function Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, 
     else
         r.SetEditCurPos(curPos, false, false)
     end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    if bool_SelectRightItemAtCleanup then
+        if not tbl_mediaItem then ErrMsgHover() return end
+        r.SetMediaItemSelected(tbl_mediaItem[2], true)
+    end
+
+end
+
+-------------------------------------------
+
+function ErrMsgHover()
+
+    r.ShowMessageBox("Please hover the mouse over an item in order to fade items.", "Quick Fade unsuccessful", 0)
 
 end
 

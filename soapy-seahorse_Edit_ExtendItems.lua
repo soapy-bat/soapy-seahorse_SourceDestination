@@ -48,7 +48,7 @@ local bool_rescueMe = false
 -- main --
 ----------
 
-function main()
+function Main()
 
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
@@ -92,7 +92,9 @@ end
 function ExtendItems(scriptCommand_rx, newToggleState_rx)
 
   -- ## get items ## --
-  local _, _, _, _, itemGUID = so.GetItemsNearMouse(cursorBias, 1)
+  local _, _, _, _, itemGUID = so.GetItemsNearMouse(cursorBias)
+
+  if not itemGUID then ErrMsgHover() return end
 
   -- ## extend items ## --
   local mediaItem = {}
@@ -100,10 +102,7 @@ function ExtendItems(scriptCommand_rx, newToggleState_rx)
     mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
   end
   for i = 1, #mediaItem do
-    if not mediaItem[i] then
-      r.ShowMessageBox("Please hover the mouse over an item in order to extend / restore items.", "Item Extender unsuccessful", 0)
-      return
-    end
+    if not mediaItem[i] then ErrMsgHover() return end
   end
 
   if bool_AvoidCollision then
@@ -184,6 +183,14 @@ end
 
 ------------------------------------------------
 
+function ErrMsgHover()
+
+  r.ShowMessageBox("Please hover the mouse over an item in order to extend items.", "Item Extender unsuccessful", 0)
+
+end
+
+------------------------------------------------
+
 function RescueExtender()
 
   local scriptCommand = r.NamedCommandLookup("_RS43a608374ea4fced06f7c4cf94c26724437b9a80")
@@ -242,5 +249,5 @@ if bool_rescueMe then
   RescueExtender()
   bool_rescueMe = false
 else
-  main()
+  Main()
 end
