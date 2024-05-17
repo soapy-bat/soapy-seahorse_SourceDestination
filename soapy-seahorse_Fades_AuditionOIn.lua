@@ -25,11 +25,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local preRoll = 2                   -- audition pre-roll, in seconds
-local postRoll = 2                  -- audition post-roll, in seconds
-local timeAmount = 2                -- time that the items get extended by, in seconds
-local cursorBias = 0.5              -- 0, ..., 2 /// 1: center of fade
-local bool_TransportAutoStop = true -- stops transport automatically after auditioning
+local preRoll = 2                    -- audition pre-roll, in seconds
+local postRoll = 2                   -- audition post-roll, in seconds
+local timeAmount = 2                 -- time that the items get extended by, in seconds
+local cursorBias = 0.5               -- 0, ..., 2 /// 1: center of fade
+local bool_TransportAutoStop = true  -- stops transport automatically after auditioning
+local bool_KeepCursorPosition = true -- false: script will leave edit cursor at the center of the fade
 
 ---------------
 -- variables --
@@ -37,26 +38,25 @@ local bool_TransportAutoStop = true -- stops transport automatically after audit
 
 local r = reaper
 
+local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
+local tbl_mutedItems = {}
+local targetItem = 1
+local rippleStateAll, rippleStatePer
+
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
 local so = require("soapy-seahorse_Fades_Functions")
-
-local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
-
-local tbl_mutedItems = {}
-
-local targetItem = 1
-
-local rippleStateAll, rippleStatePer
 
 ----------
 -- main --
 ----------
 
-function main()
+function Main()
 
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
+
+  local curPos = r.GetCursorPosition()
 
   r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
@@ -80,6 +80,10 @@ function main()
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
   end
 
+  if bool_KeepCursorPosition then
+    r.SetEditCurPos(curPos, false, false)
+  end
+
   r.Undo_EndBlock("Audition Original In", 0)
 
 end
@@ -96,7 +100,7 @@ function CheckPlayState()
   local playState = r.GetPlayState()
 
   local bool_exit = false
-    
+
   if playState == 0 then -- Transport is stopped
 
     so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
@@ -124,4 +128,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-main()
+Main()

@@ -25,11 +25,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local preRoll = 2                   -- audition pre-roll, in seconds
-local postRoll = 2                  -- audition post-roll, in seconds
-local cursorBias = 1                -- 0, ..., 2 /// 1: center of fade
-local bool_TransportAutoStop = true -- stops transport automatically after auditioning
-local bool_RemoveFade = false       -- experimental: auditions without the fade
+local preRoll = 2                    -- audition pre-roll, in seconds
+local postRoll = 2                   -- audition post-roll, in seconds
+local cursorBias = 1                 -- 0, ..., 2 /// 1: center of fade
+local bool_TransportAutoStop = true  -- stops transport automatically after auditioning
+local bool_RemoveFade = false        -- experimental: auditions without the fade
+local bool_KeepCursorPosition = true -- false: script will leave edit cursor at the center of the fade
 
 ---------------
 -- variables --
@@ -49,10 +50,12 @@ local so = require("soapy-seahorse_Fades_Functions")
 -- main --
 ----------
 
-function main()
+function Main()
 
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
+
+  local curPos = r.GetCursorPosition()
 
   r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
@@ -84,6 +87,10 @@ function main()
     CheckPlayState()
   else
     r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+  end
+
+  if bool_KeepCursorPosition then
+    r.SetEditCurPos(curPos, false, false)
   end
 
   r.PreventUIRefresh(-1)
@@ -128,4 +135,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-main()
+Main()
