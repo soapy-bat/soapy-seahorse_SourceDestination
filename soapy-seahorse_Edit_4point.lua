@@ -70,7 +70,7 @@ function Main()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = SaveEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = so.PrepareEditStates()
 
     r.Main_OnCommand(40309, 1) -- Set ripple editing off
     r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
@@ -86,16 +86,16 @@ function Main()
     local sourceItem = r.GetSelectedMediaItem(0, 0)
     if not sourceItem then return end
 
-    local sourceGateIn = GetSourceGateIn()
+    local sourceGateIn = so.GetSourceGate(sourceItem, srcLabelIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = GetSourceGateOut()
+    local sourceGateOut = so.GetSourceGate(sourceItem, srcLabelOut)
     if not sourceGateOut then return end
 
-    local dstInPos = GetDstGateIn()
+    local dstInPos = so.GetDstGate(dstIdxIn)
     if not dstInPos then return end
 
-    local dstOutPos = GetDstGateOut()
+    local dstOutPos = so.GetDstGate(dstIdxOut)
     if not dstOutPos then return end
 
     local targetTrack = r.GetMediaItem_Track(sourceItem)
@@ -111,10 +111,10 @@ function Main()
     local destinationDifference = CalcDstOffset(sourceGateIn, sourceGateOut, dstInPos, dstOutPos)
     ClearDestinationArea(dstInPos, dstOutPos)
     ShiftDestinationItems(destinationDifference, dstOutPos)
+    
+    ---##### src copy routine #####---
 
-    ---##### continue src copy routine #####---
-
-    SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+    so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
     r.SetMediaItemSelected(sourceItem, true)
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
@@ -122,12 +122,11 @@ function Main()
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
-
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
     ---##### paste source to destination #####---
 
-    PasteToTopLane()           -- paste source material
+    so.PasteToTopLane(dstIdxIn)           -- paste source material
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
@@ -135,13 +134,13 @@ function Main()
 
     if bool_AutoCrossfade then
         r.GoToMarker(0, dstIdxIn, false) -- go to start of pasted item
-        SetCrossfade(xfadeLen)
+        so.SetCrossfade(xfadeLen)
 
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        SetCrossfade(xfadeLen)
+        so.SetCrossfade(xfadeLen)
     end
 
-    RemoveSourceGates(-1)    -- remove src gates from newly pasted material
+    so.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -149,11 +148,11 @@ function Main()
 
     if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        SetDstGateIn()        -- move destination gate in to end of pasted material (assembly line style)
+        so.SetDstGateIn(dstLabelIn, dstIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
     end
 
     if bool_RemoveAllSourceGates then
-        RemoveSourceGates(0)
+        so.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
     r.DeleteProjectMarker(0, dstIdxOut, false)
@@ -168,7 +167,7 @@ function Main()
     so.SetTimeSelection(timeSelStart, timeSelEnd)
     so.SetLoopPoints(loopStart, loopEnd)
 
-    ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+    so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -198,87 +197,6 @@ function CalcDstOffset(srcStart, srcEnd, dstStart, dstEnd)
     local difference = srcLen - dstLen
 
     return difference
-end
-
--------------------------------------------------------------------
-
-function GetSourceGateIn() -- Find SRC_IN marker
-  local sourceInPos = GetTakeMarkerPositionByName(srcLabelIn)
-  if sourceInPos then
-      return sourceInPos
-  else
-      r.ShowMessageBox(srcLabelIn .. " not found.", "Take marker not found", 0)
-      return
-  end
-end
-
--------------------------------------------------------------------
-
-function GetSourceGateOut() -- Find SRC_OUT marker
-  local sourceOutPos = GetTakeMarkerPositionByName(srcLabelOut)
-  if sourceOutPos then
-      return sourceOutPos
-  else
-      r.ShowMessageBox(srcLabelOut .. " not found.", "Take marker not found", 0)
-      return
-  end
-end
-
--------------------------------------------------------------------
-
-function GetDstGateIn() -- Find DST_IN marker
-
-    local _, numMarkers, numRegions = r.CountProjectMarkers(0)
-
-    for i = 0, numMarkers + numRegions do
-
-        local _, _, dstInPos, _, _, markerIndex = r.EnumProjectMarkers(i)
-
-        if markerIndex == dstIdxIn then
-            return dstInPos
-        end
-    end
-
-end
-
--------------------------------------------------------------------
-
-function GetDstGateOut() -- Find DST_OUT marker
-
-    local _, numMarkers, numRegions = r.CountProjectMarkers(0)
-
-    for i = 0, numMarkers + numRegions do
-
-        local _, _, dstOutPos, _, _, markerIndex = r.EnumProjectMarkers(i)
-
-        if markerIndex == dstIdxOut then
-            return dstOutPos
-        end
-    end
-
-end
-
--------------------------------------------------------------------
-
-function SetTimeSelectionToSourceGates(srcStart, srcEnd)
-
-    -- Function to set a Time Selection based on given start and end points
-
-    if srcEnd <= srcStart then return false end
-
-    r.GetSet_LoopTimeRange2(0, true, false, srcStart, srcEnd, true)
-
-end
-
--------------------------------------------------------------------
-
-function PasteToTopLane()
-
-    r.Main_OnCommand(42790, 0) -- play only first lane
-
-    r.GoToMarker(0, dstIdxIn, false)
-    r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
-
 end
 
 -------------------------------------------------------------------
@@ -330,13 +248,14 @@ function ClearDestinationArea(selStart, selEnd)
     end
 
     r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
-    HealAllSplits()
-
+    
 end
 
 -------------------------------------------------------------------
 
 function ShiftDestinationItems(difference_rx, dstOutPos_rx)
+
+    -- media item needs to be selected
 
     local difference = difference_rx
     local dstOutPos = dstOutPos_rx
@@ -381,265 +300,6 @@ function ShiftDestinationItems(difference_rx, dstOutPos_rx)
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
 end
-
--------------------------------------------------------------------
-
-function GetItemsOnLane(flaggedGUID_rx)
-
-    local flaggedGUID = flaggedGUID_rx
-
-    -- get media track and fixed lane of flagged item
-    local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
-    if not flaggedItem then return end
-    local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
-
-    local mediaTrack = r.GetMediaItem_Track(flaggedItem)
-    if not mediaTrack then return end
-    local itemCount = r.CountTrackMediaItems(mediaTrack)
-
-    local tbl_laneItemsGUID = {}
-
-    for i = 0, itemCount - 1 do
-
-      local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
-      if mediaItem then
-
-        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-        if itemLane == flaggedLane then
-          local newGUID = r.BR_GetMediaItemGUID(mediaItem)
-          table.insert(tbl_laneItemsGUID, newGUID)
-        end
-      end
-    end
-
-    return tbl_laneItemsGUID
-
-  end
-
--------------------------------------------------------------------
-
-function RemoveSourceGates_old()
-
-    local numSelectedItems = r.CountSelectedMediaItems(0)
-
-    -- Iterate through selected items
-    for i = 0, numSelectedItems - 1 do
-
-        -- Get the active media item
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-
-        if not mediaItem then return end
-
-        -- Get the active take
-        local activeTake = r.GetActiveTake(mediaItem)
-
-        if activeTake then
-            -- Remove existing Gate markers
-            local numMarkers = r.GetNumTakeMarkers(activeTake)
-            for i = numMarkers, 0, -1 do
-                local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                if markerType == srcLabelIn then
-                    r.DeleteTakeMarker(activeTake, i)
-                end
-                if markerType == srcLabelOut then
-                    r.DeleteTakeMarker(activeTake, i)
-                end
-            end
-        end
-    end
-end
-
--------------------------------------------------------------------
-
-function SetDstGateIn()       -- thanks chmaha <3
-    local markerLabel = dstLabelIn
-    local markerColor = r.ColorToNative(22, 141, 195)
-
-    local cursorPosition = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(0, dstIdxIn, false)
-    r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, dstIdxIn, markerColor | 0x1000000)
-end
-
--------------------------------------------------------------------
-
-function SetCrossfade(xfadeLen)    -- thanks chmaha <3
-
-    -- assumes that the cursor is at the center of the "fade in spe"
-
-    local currentCursorPos = r.GetCursorPosition()
-
-    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
-
-    r.SetEditCurPos(currentCursorPos - xfadeLen/2, false, false)
-
-    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
-
-    r.SetEditCurPos(currentCursorPos + xfadeLen/2, false, false)
-
-    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-    r.Main_OnCommand(40421, 0) -- Item: Select all items in track
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-    -- make sure only items in the topmost lane are affected
-
-    local selectedItemsGUID = {}
-
-    for i = 0, r.CountSelectedMediaItems(0) - 1 do
-
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-
-        if not mediaItem then return end
-
-        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-        if itemLane >= 1 then
-            table.insert(selectedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
-        end
-    end
-
-    for i = 1, #selectedItemsGUID do
-
-        local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
-        if mediaItem then
-            r.SetMediaItemSelected(mediaItem, false)
-        end
-    end
-
-    r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
-
-    r.Main_OnCommand(40635, 0) -- Time selection: Remove time selection
-
-end
-
-------------------------------------------
-
-function RemoveSourceGates(safeLane_rx)
-
-    -- (-1): remove ONLY topmost lanes' src gates
-    local safeLane = safeLane_rx
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-
-    r.SelectAllMediaItems(0, true)
-
-    local numSelectedItems = r.CountSelectedMediaItems(0)
-
-    for i = 0, numSelectedItems - 1 do
-
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-        if not mediaItem then return end
-
-        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-        if itemLane >= safeLane and safeLane ~= -1 then
-
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-
-            if activeTake then
-                -- Remove existing MarkerLabel markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == srcLabelIn then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                    if markerType == srcLabelOut then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                end
-            end
-
-        elseif safeLane == -1 then
-
-            if itemLane == 0 then
-
-                -- Get the active take
-                local activeTake = r.GetActiveTake(mediaItem)
-
-                if activeTake then
-                    -- Remove existing MarkerLabel markers
-                    local numMarkers = r.GetNumTakeMarkers(activeTake)
-                    for i = numMarkers, 0, -1 do
-                        local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                        if markerType == srcLabelIn then
-                            r.DeleteTakeMarker(activeTake, i)
-                        end
-                        if markerType == srcLabelOut then
-                            r.DeleteTakeMarker(activeTake, i)
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-
-end
-
-------------------------------------------
-
-function SaveEditStates()
-
-    local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
-    local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
-    local trimContentState = r.GetToggleCommandState(41117) -- Options: Trim content behind media items when editing
-
-    return rippleStateAll, rippleStatePer, trimContentState
-
-end
-
-------------------------------------------
-
-function ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
-
-    if rippleStateAll == 1 then
-        r.Main_OnCommand(41991, 1)
-    elseif rippleStatePer == 1 then
-        r.Main_OnCommand(41990, 1)
-    elseif rippleStateAll == 0 and rippleStatePer == 0 then
-        r.Main_OnCommand(40309, 1) -- Set ripple editing off
-    end
-
-    if trimContentState == 0 then
-        r.Main_OnCommand(41121, 1) -- Options: Disable trim content behind media items when editing
-    end
-
-end
-
-------------------------------------------
-
-function ToggleLockItemsInSourceLanes(lockState_rx)
-
-    local lockState = lockState_rx
-
-    local safeLanes = 1 -- Lanes that will not be locked, indexed from the topmost lane
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-
-    r.SelectAllMediaItems(0, true)
-
-    for i = 0, r.CountSelectedMediaItems(0) - 1 do
-
-      local mediaItem = r.GetSelectedMediaItem(0, i)
-
-      local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-      if itemLane >= safeLanes then
-
-        r.SetMediaItemInfo_Value(mediaItem, "C_LOCK", lockState)
-
-      end
-
-    end
-
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-
-  end
 
 -------------------------------------------------------------------
 
@@ -713,34 +373,67 @@ end
 
 -------------------------------------------------------------------
 
-function GetTakeMarkerPositionByName(name)
--- Function to search for take markers by name in selected items, allows for multiple sources
+function GetItemsOnLane(flaggedGUID_rx)
 
-    if bool_TargetItemUnderMouse then
-        r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
-        r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
+    local flaggedGUID = flaggedGUID_rx
+
+    -- get media track and fixed lane of flagged item
+    local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
+    if not flaggedItem then return end
+    local flaggedLane = r.GetMediaItemInfo_Value(flaggedItem, "I_FIXEDLANE")
+
+    local mediaTrack = r.GetMediaItem_Track(flaggedItem)
+    if not mediaTrack then return end
+    local itemCount = r.CountTrackMediaItems(mediaTrack)
+
+    local tbl_laneItemsGUID = {}
+
+    for i = 0, itemCount - 1 do
+
+      local mediaItem = r.GetTrackMediaItem(mediaTrack, i)
+      if mediaItem then
+
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+        if itemLane == flaggedLane then
+          local newGUID = r.BR_GetMediaItemGUID(mediaItem)
+          table.insert(tbl_laneItemsGUID, newGUID)
+        end
+      end
     end
 
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+    return tbl_laneItemsGUID
+
+end
+
+-------------------------------------------------------------------
+
+function RemoveSourceGates_old()
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
 
-     -- Iterate through selected items
-     for i = 0, numSelectedItems - 1 do
-         local selectedItem = r.GetSelectedMediaItem(0, i)
-         local take = r.GetActiveTake(selectedItem)
+    -- Iterate through selected items
+    for i = 0, numSelectedItems - 1 do
 
-        local numMarkers = r.GetNumTakeMarkers(take)
+        -- Get the active media item
+        local mediaItem = r.GetSelectedMediaItem(0, i)
 
-        for k = 0, numMarkers - 1 do
-            local pos, name_, _  = r.GetTakeMarker(take, k)
-            if name_ == name then
-                -- Get necessary locations
-                local itemPos = r.GetMediaItemInfo_Value(selectedItem, "D_POSITION")
-                -- take markers are referenced from the item source media, not from the item edges:
-                local itemEdgeOffset =  r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
-                local newMarkerPos = itemPos + pos - itemEdgeOffset
-                return newMarkerPos
+        if not mediaItem then return end
+
+        -- Get the active take
+        local activeTake = r.GetActiveTake(mediaItem)
+
+        if activeTake then
+            -- Remove existing Gate markers
+            local numMarkers = r.GetNumTakeMarkers(activeTake)
+            for i = numMarkers, 0, -1 do
+                local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
+                if markerType == srcLabelIn then
+                    r.DeleteTakeMarker(activeTake, i)
+                end
+                if markerType == srcLabelOut then
+                    r.DeleteTakeMarker(activeTake, i)
+                end
             end
         end
     end

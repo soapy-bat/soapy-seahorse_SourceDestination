@@ -182,15 +182,7 @@ end
 
 function so.GetTimeSelection()
 
-    local curPos = r.GetCursorPosition()
-
-    r.Main_OnCommand(40630, 0) -- Go to start of time selection
-    local timeSelStart = r.GetCursorPosition()
-
-    r.Main_OnCommand(40631, 0) -- Go to end of time selection
-    local timeSelEnd = r.GetCursorPosition()
-
-    r.SetEditCurPos(curPos, false, false)
+    local timeSelStart, timeSelEnd = r.GetSet_LoopTimeRange2(0, false, false, 0, 0, true)
 
     return timeSelStart, timeSelEnd
 
@@ -202,17 +194,7 @@ function so.SetTimeSelection(timeSelStart, timeSelEnd)
 
     if not timeSelStart or not timeSelEnd then return end
 
-    local curPos = r.GetCursorPosition()
-
-    r.Main_OnCommand(40635, 0) -- Time selection: Remove (unselect) time selection
-
-    r.SetEditCurPos(timeSelStart, false, false)
-    r.Main_OnCommand(40625, 0) -- Time selection: Set start point
-
-    r.SetEditCurPos(timeSelEnd, false, false)
-    r.Main_OnCommand(40626, 0) -- Time selection: Set end point
-
-    r.SetEditCurPos(curPos, false, false)
+    r.GetSet_LoopTimeRange2(0, true, false, timeSelStart, timeSelEnd, true)
 
 end
 
@@ -220,15 +202,7 @@ end
 
 function so.GetLoopPoints()
 
-    local curPos = r.GetCursorPosition()
-
-    r.Main_OnCommand(40632, 0) -- Go to start of loop
-    local loopStart = r.GetCursorPosition()
-
-    r.Main_OnCommand(40633, 0) -- Go to end of loop
-    local loopEnd = r.GetCursorPosition()
-
-    r.SetEditCurPos(curPos, false, false)
+    local loopStart, loopEnd = r.GetSet_LoopTimeRange2(0, false, true, 0, 0, true)
 
     return loopStart, loopEnd
 
@@ -240,17 +214,7 @@ function so.SetLoopPoints(loopStart, loopEnd)
 
     if not loopStart or not loopEnd then return end
 
-    local curPos = r.GetCursorPosition()
-
-    r.Main_OnCommand(40634, 0) -- Loop points: Remove (unselect) loop point selection
-
-    r.SetEditCurPos(loopStart, false, false)
-    r.Main_OnCommand(40222, 0) -- Loop points: Set start point
-
-    r.SetEditCurPos(loopEnd, false, false)
-    r.Main_OnCommand(40223, 0) -- Loop points: Set end point
-
-    r.SetEditCurPos(curPos, false, false)
+    r.GetSet_LoopTimeRange2(0, true, true, loopStart, loopEnd, true)
 
 end
 
@@ -367,11 +331,25 @@ end
 
 -------------------------------------------------------------------
 
+function so.GetDstGate(gateIdx) -- Find DST marker
 
--- Function to set a Time Selection based on given start and end points
+    local _, numMarkers, numRegions = r.CountProjectMarkers(0)
+
+    for i = 0, numMarkers + numRegions do
+
+        local _, _, dstInPos, _, _, markerIndex = r.EnumProjectMarkers(i)
+
+        if markerIndex == gateIdx then
+            return dstInPos
+        end
+    end
+
+end
+
+-------------------------------------------------------------------
 
 function so.SetTimeSelectionToSourceGates(srcStart, srcEnd)
-
+    -- Function to set a Time Selection based on given start and end points
     if srcEnd <= srcStart then return false end
 
     r.GetSet_LoopTimeRange2(0, true, false, srcStart, srcEnd, true)
@@ -413,15 +391,20 @@ function so.SetCrossfade(xfadeLen)    -- thanks chmaha <3
 
     local currentCursorPos = r.GetCursorPosition()
 
-    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
+    local fadeStart = currentCursorPos - xfadeLen/2
+    local fadeEnd = currentCursorPos + xfadeLen/2
 
-    r.SetEditCurPos(currentCursorPos - xfadeLen/2, false, false)
+    r.GetSet_LoopTimeRange2(0, true, false, fadeStart, fadeEnd, true)
 
-    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+    -- r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
 
-    r.SetEditCurPos(currentCursorPos + xfadeLen/2, false, false)
+    -- r.SetEditCurPos(fadeStart, false, false)
 
-    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
+    -- r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+
+    -- r.SetEditCurPos(fadeEnd, false, false)
+
+    -- r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
 
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
@@ -590,6 +573,16 @@ function so.ToggleLockItemsInSourceLanes(lockState_rx)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
-  end
+end
 
-  return so
+------------------------------------------
+
+function so.DebugBreakpoint()
+
+    r.ShowMessageBox("this is a breakpoint message", "Debugging in Progress...", 0)
+
+end
+
+------------------------------------------
+
+return so
