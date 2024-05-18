@@ -585,4 +585,145 @@ end
 
 ------------------------------------------
 
+function so.ErrMsgMissingData()
+
+    r.ShowMessageBox("Something went wrong while handling data.", "Missing Data", 0)
+
+end
+
+------------------------------------------
+
+
+function so.CalcDstOffset(srcStart, srcEnd, dstStart, dstEnd)
+
+    -- get amount that destination out needs to be moved by
+
+    if srcEnd <= srcStart then return end
+    if dstEnd <= dstStart then return end
+
+    local srcLen = srcEnd - srcStart
+    local dstLen = dstEnd - dstStart
+
+    local difference = srcLen - dstLen
+
+    return difference
+end
+
+-------------------------------------------------------------------
+
+function so.ClearDestinationArea(selStart, selEnd)
+
+    -- clear area between destination markers using time and item selections
+
+    if not selStart then so.ErrMsgMissingData() return end
+    if not selEnd then so.ErrMsgMissingData() return end
+
+    r.SetEditCurPos(selStart, false, false)
+    r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
+
+    r.SetEditCurPos(selEnd, false, false)
+    r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
+
+    so.SetTimeSelection(selStart, selEnd)
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40718, 0) -- Item: Select all items on selected tracks in current time selection
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    local itemsToCut = {}
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local mediaItem = r.GetSelectedMediaItem(0, i)
+
+        if mediaItem then
+
+            local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+            if itemLane == 0 then
+                table.insert(itemsToCut, mediaItem)
+            end
+        end
+    end
+
+    for i = 1, #itemsToCut do
+
+        local mediaItem = itemsToCut[i]
+
+        if mediaItem then
+
+            local mediaTrack = r.GetMediaItem_Track(mediaItem)
+            r.DeleteTrackMediaItem(mediaTrack, mediaItem)
+
+        end
+    end
+
+    r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
+    
+end
+
+-------------------------------------------------------------------
+
+function so.ShiftDestinationItems(difference_rx, dstOutPos_rx)
+
+    -- shift items only on topmost lane one by one (ripple only works with graphical input)
+    -- media track needs to be selected
+
+    local difference = difference_rx
+    local dstOutPos = dstOutPos_rx
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40421, 0) -- Item: Select all items in track
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    local targetItems = {}
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local mediaItem = r.GetSelectedMediaItem(0, i)
+
+        if not mediaItem then return end
+
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+        local itemPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+
+        if itemLane == 0 and itemPos >= dstOutPos then
+            table.insert(targetItems, mediaItem)
+        end
+
+    end
+
+    for i = 1, #targetItems do
+
+        local mediaItem = targetItems[i]
+
+        if mediaItem then
+
+            local itemPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+            local newPos = itemPos + difference
+
+            r.SetMediaItemInfo_Value(mediaItem, "D_POSITION", newPos)
+
+        end
+
+    end
+
+    so.HealAllSplits()
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+end
+
+-------------------------------------------------------------------
+
+function so.HealAllSplits()
+
+    r.Main_OnCommand(40182, 0) -- Select All
+    r.Main_OnCommand(40548, 0) -- Heal splits in items
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+end
+
+
 return so
