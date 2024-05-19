@@ -81,6 +81,11 @@ function Main()
     local timeSelStart, timeSelEnd = so.GetTimeSelection()
     local loopStart, loopEnd = so.GetLoopPoints()
 
+    if bool_TargetItemUnderMouse then
+        r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
+        r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
+    end
+
     -- future routines (ShiftDestinationItems) will deselect the item,
     -- that's why we will get this one first:
     local sourceItem = r.GetSelectedMediaItem(0, 0)
@@ -103,7 +108,7 @@ function Main()
 
     local tbl_PlayingLanes
     if bool_KeepLaneSolo then
-        tbl_PlayingLanes = so.GetLanesPlaying(targetTrack)
+        tbl_PlayingLanes = so.GetLaneSolo(targetTrack)
     end
 
     ---##### calculate offset and move items on comp lane accordingly #####---
@@ -161,7 +166,7 @@ function Main()
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
-        so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
+        so.SetLaneSolo(sourceItem, tbl_PlayingLanes)
     end
 
     so.SetTimeSelection(timeSelStart, timeSelEnd)

@@ -88,6 +88,7 @@ function so.ThreePointEdit(bool_Ripple)
     end
 
     local sourceItem = r.GetSelectedMediaItem(0,0)
+    if not sourceItem then return end
 
     local sourceGateIn = so.GetSourceGate(sourceItem, srcLabelIn)
     if not sourceGateIn then return end
@@ -96,15 +97,14 @@ function so.ThreePointEdit(bool_Ripple)
     if not sourceGateOut then return end
 
     local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
+    r.SetOnlyTrackSelected(targetTrack)
 
     local tbl_PlayingLanes
     if bool_KeepLaneSolo then
-        tbl_PlayingLanes = so.GetLanesPlaying(targetTrack)
+        tbl_PlayingLanes = so.GetLaneSolo(targetTrack)
     end
 
     ---##### src copy routine #####---
-
-    r.SetOnlyTrackSelected(targetTrack)
 
     so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
@@ -154,7 +154,7 @@ function so.ThreePointEdit(bool_Ripple)
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
-        so.SetLanesPlaying(targetTrack, tbl_PlayingLanes)
+        so.SetLaneSolo(sourceItem, tbl_PlayingLanes)
     end
 
     so.SetTimeSelection(timeSelStart, timeSelEnd)
@@ -200,6 +200,9 @@ end
 
 -------------------------------------------
 
+---Get start and end position of loop points in session using r.GetSet_LoopTimeRange2()
+---@return number loopStart
+---@return number loopEnd
 function so.GetLoopPoints()
 
     local loopStart, loopEnd = r.GetSet_LoopTimeRange2(0, false, true, 0, 0, true)
@@ -209,7 +212,9 @@ function so.GetLoopPoints()
 end
 
 -------------------------------------------
-
+---Set start and end position of loop points in session using r.GetSet_LoopTimeRange2()
+---@param loopStart number
+---@param loopEnd number
 function so.SetLoopPoints(loopStart, loopEnd)
 
     if not loopStart or not loopEnd then return end
@@ -219,8 +224,10 @@ function so.SetLoopPoints(loopStart, loopEnd)
 end
 
 -------------------------------------------
-
-function so.GetLanesPlaying(selTrack)
+---Get solo states of a given media track using r.GetMediaTrackInfo_Value()
+---@param selTrack MediaTrack
+---@return table tbl_playingLanes
+function so.GetLaneSolo(selTrack)
 
     local tbl_PlayingLanes = {}
 
@@ -242,46 +249,99 @@ function so.GetLanesPlaying(selTrack)
 end
 
 -------------------------------------------------------------------
+---sets lane solo for first active lane (impossible to set multiple lane solos via script)
+---@param selItem MediaItem
+---@param tbl_PlayingLanes table
+function so.SetLaneSolo(selItem, tbl_PlayingLanes)
 
-function so.SetLanesPlaying(selTrack, tbl_PlayingLanes)
+    local tbl_groupedTracks = so.GetTracksOfItemGroup(selItem)
 
-    local numLanes =  r.GetMediaTrackInfo_Value(selTrack, "I_NUMFIXEDLANES")
+    for i = 1, #tbl_groupedTracks do
 
-    if #tbl_PlayingLanes > 1 then
-
-        for i = 0, numLanes - 1 do
-
-            local parmName = tostring("C_LANEPLAYS:" .. i)
-            local laneIsActive = false
-
-            for h = 1, #tbl_PlayingLanes do
-                if i == tbl_PlayingLanes[h] then
-                    laneIsActive = true
-                else
-                    laneIsActive = false
-                end
-            end
-
-            if laneIsActive then
-                r.SetMediaTrackInfo_Value(selTrack, parmName, 2)
-            else
-                r.SetMediaTrackInfo_Value(selTrack, parmName, 0)
-            end
-
-        end
-
-    elseif #tbl_PlayingLanes == 1 then
+        local selTrack = tbl_groupedTracks[i]
 
         local parmName = tostring("C_LANEPLAYS:" .. tbl_PlayingLanes[1])
         r.SetMediaTrackInfo_Value(selTrack, parmName, 1)
-
     end
 
 end
 
 -------------------------------------------------------------------
 
-function so.GetSourceGate(sourceItem_rx, markerLabel_rx) -- Find SRC_OUT marker
+---get list of tracks based on grouped items (usually the main editing group)
+---@param selItem MediaItem
+---@return table tbl_groupedTracks
+function so.GetTracksOfItemGroup(selItem)
+
+    local tbl_groupedTracks = {}
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40297, 0) -- Track: Unselect (clear selection of) all tracks
+
+    r.SetMediaItemSelected(selItem, true)
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+        local selTrack = r.GetMediaItemTrack(r.GetSelectedMediaItem(0, i))
+        r.SetTrackSelected(selTrack, true)
+    end
+
+    for i = 0, r.CountSelectedTracks(0) - 1 do
+        local selTrack = r.GetSelectedTrack(0, i)
+        table.insert(tbl_groupedTracks, selTrack)
+    end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.Main_OnCommand(40297, 0) -- Track: Unselect (clear selection of) all tracks
+
+    return tbl_groupedTracks
+end
+
+-------------------------------------------------------------------
+
+function so.GetGroupedTracks(selTrack)
+
+    -- only checks first 32 groups atm
+
+    local isEditLead = r.GetSetTrackGroupMembership(selTrack, "MEDIA_EDIT_LEAD", 0, 0)
+    local isEditFollow = r.GetSetTrackGroupMembership(selTrack, "MEDIA_EDIT_FOLLOW", 0, 0)
+
+    isEditLead = so.DecToBin(isEditLead)
+    isEditFollow = so.DecToBin(isEditFollow)
+
+    return isEditLead, isEditFollow
+end
+
+-------------------------------------------------------------------
+
+---Convert base 10 number to base 2 number
+---@param num integer
+---@return integer result
+function so.DecToBin(num)
+
+	local bin = ""  -- Create an empty string to store the binary form
+	local rem  -- Declare a variable to store the remainder
+
+	-- This loop iterates over the number, dividing it by 2 and storing the remainder each time
+	-- It stops when the number has been divided down to 0
+	while num > 0 do
+		rem = num % 2  -- Get the remainder of the division
+		bin = rem .. bin  -- Add the remainder to the string (in front, since we're iterating backwards)
+		num = math.floor(num / 2)  -- Divide the number by 2
+	end
+
+    local result = tonumber(bin) -- string to number
+
+	return result
+end
+
+-------------------------------------------------------------------
+
+---find flagged take marker in given item
+---@param sourceItem_rx MediaItem
+---@param markerLabel_rx string
+---@return number sourceMarkerPosition
+function so.GetSourceGate(sourceItem_rx, markerLabel_rx)
     local sourceItem = sourceItem_rx
     local markerLabel = markerLabel_rx
 
@@ -385,26 +445,19 @@ end
 
 -------------------------------------------------------------------
 
-function so.SetCrossfade(xfadeLen)    -- thanks chmaha <3
+function so.SetCrossfade(xfadeLen, curPos)    -- thanks chmaha
 
-    -- assumes that the cursor is at the center of the "fade in spe"
-
-    local currentCursorPos = r.GetCursorPosition()
+    local currentCursorPos
+    if curPos then
+        currentCursorPos = curPos
+    else
+        currentCursorPos = r.GetCursorPosition()
+    end
 
     local fadeStart = currentCursorPos - xfadeLen/2
     local fadeEnd = currentCursorPos + xfadeLen/2
 
     r.GetSet_LoopTimeRange2(0, true, false, fadeStart, fadeEnd, true)
-
-    -- r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
-
-    -- r.SetEditCurPos(fadeStart, false, false)
-
-    -- r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
-
-    -- r.SetEditCurPos(fadeEnd, false, false)
-
-    -- r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
 
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
@@ -725,5 +778,6 @@ function so.HealAllSplits()
 
 end
 
+-------------------------------------------------------------------
 
 return so
