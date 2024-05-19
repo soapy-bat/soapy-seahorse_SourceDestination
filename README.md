@@ -1,7 +1,7 @@
 # soapy-seahorse Source-Destination
 The seahorse scripts provide tools for two multitrack workflows using REAPER:
 
-## 1. Three-point soure-destination editing
+## 1. Three-point and four-point source-destination editing
 ### Required
 "Markers" and "Edit" scripts.
 ### How to use
@@ -10,7 +10,6 @@ The seahorse scripts provide tools for two multitrack workflows using REAPER:
 - three-point edit: make sure to select the source item (that contains the source gates) and run the script. It will paste the area(s) between SRC_IN and SRC_OUT to the topmost lane at DST_IN.
 ### Notes
 - The script ```Edit_3pointAssembly``` allows user customization by editing the ```user settings``` at the beginning of the file.
-- 4-point editing is planned at a later stage.
 - The script assumes that source items be places on fixed item lanes and that the topmost lane will contain the comp.
 
 ## 2. Fade auditioning
