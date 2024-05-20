@@ -3,7 +3,7 @@
 source-destination edit: extend items at crossfade
 
 This script is part of the soapy-seahorse package.
-It requires the file "soapy-seahorse_Fades_Functions.lua"
+It requires the file "soapy-seahorse_Edit_Functions.lua"
 
 (C) 2024 the soapy zoo
 thanks: fricia, X-Raym, GPT3.5

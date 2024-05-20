@@ -3,6 +3,7 @@
 source-destination markers / gates: remove all source gates
 
 This file is part of the soapy-seahorse package.
+It requires the file "soapy-seahorse_Edit_Functions.lua"
 
 (C) 2024 the soapy zoo
 
@@ -22,58 +23,33 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- variables --
 ---------------
 
+local sourceLabelIn = "SRC_IN"
+local sourceLabelOut = "SRC_OUT"
+
 local r = reaper
 
-local markerLabelIn = "SRC_IN"
-local markerLabelOut = "SRC_OUT"
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "?.lua"
+local so = require("soapy-seahorse_Edit_Functions")
 
 ---------------
 -- functions --
 ---------------
 
-function RemoveAllSourceGates()
+function Main()
 
-  r.Main_OnCommand(40182, 0) -- Select All
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
 
-  local numSelectedItems = r.CountSelectedMediaItems(0)
-  
-   -- Iterate through selected items
-   for i = 0, numSelectedItems - 1 do
+    so.RemoveSourceGates(0, sourceLabelIn, sourceLabelOut)
 
-        -- Get the active media item
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-        
-        if mediaItem then
-            -- Get the active take
-            local activeTake = r.GetActiveTake(mediaItem)
-        
-            if activeTake then
-                -- Remove existing MarkerLabel markers
-                local numMarkers = r.GetNumTakeMarkers(activeTake)
-                for i = numMarkers, 0, -1 do
-                    local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-                    if markerType == markerLabelIn then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                    if markerType == markerLabelOut then
-                        r.DeleteTakeMarker(activeTake, i)
-                    end
-                end
-            end
-        end
-    end
-  
-  r.Main_OnCommand(40289, 0) -- Deselect all items
-  
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
+    r.Undo_EndBlock("Remove All Source Gates", -1)
 end
 
 ---------------------------
 -- execution starts here --
 ---------------------------
 
-r.Undo_BeginBlock()
-
-RemoveAllSourceGates()
-
-r.UpdateArrange()
-r.Undo_EndBlock("Remove All Source Gates", -1)
+Main()
