@@ -249,7 +249,7 @@ function so.GetGroupedItems(itemGUID_rx)
 
       -- table.insert indexes from 1, not from 0 (lua convention)
       table.insert(tbl_groupedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
-      
+
     end
   end
 
@@ -561,15 +561,7 @@ end
 
 -------------------------------------------------------
 
-function so.SetFade(itemGUID_rx, inOrOut_rx, fadeLen_rx, fadeLenAuto_rx, fadeDir_rx, fadeShape_rx)
-
-  local itemGUID = itemGUID_rx
-  local inOrOut = inOrOut_rx
-
-  local fadeLen = fadeLen_rx
-  local fadeLenAuto = fadeLenAuto_rx
-  local fadeDir = fadeDir_rx
-  local fadeShape = fadeShape_rx
+function so.SetFade(itemGUID, inOrOut, fadeLen, fadeLenAuto, fadeDir, fadeShape)
 
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
   if not mediaItem then return end

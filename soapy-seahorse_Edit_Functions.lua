@@ -32,7 +32,7 @@ local bool_AutoCrossfade = true                 -- fade newly edited items
 
 local bool_MoveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
 
-local bool_RemoveAllSourceGates = false         -- remove all source gates after the edit
+local bool_RemoveAllSourceGates = true         -- remove all source gates after the edit
 
 local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
 
@@ -121,7 +121,10 @@ function so.ThreePointEdit(bool_Ripple)
         so.ToggleLockItemsInSourceLanes(1)
     end
 
-    so.PasteToTopLane(dstIdxIn)           -- paste source material
+    -- paste source material
+    r.GoToMarker(0, dstIdxIn, false)
+    r.Main_OnCommand(42790, 0) -- play only first lane / solo first lane (comp lane)
+    r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
     if bool_Ripple then
         so.ToggleLockItemsInSourceLanes(0)
@@ -251,7 +254,9 @@ function so.FourPointEdit()
 
     ---##### paste source to destination #####---
 
-    so.PasteToTopLane(dstIdxIn)           -- paste source material
+    r.GoToMarker(0, dstIdxIn, false)
+    r.Main_OnCommand(42790, 0) -- play only first lane
+    r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
 
@@ -446,7 +451,7 @@ end
 
 ---Convert base 10 number to base 2 number
 ---@param num integer
----@return integer result
+---@return number result
 function so.DecToBin(num)
 
 	local bin = ""  -- Create an empty string to store the binary form
@@ -468,12 +473,10 @@ end
 -------------------------------------------------------------------
 
 ---find flagged take marker in given item
----@param sourceItem_rx MediaItem
----@param markerLabel_rx string
----@return number sourceMarkerPosition
-function so.GetSourceGate(sourceItem_rx, markerLabel_rx)
-    local sourceItem = sourceItem_rx
-    local markerLabel = markerLabel_rx
+---@param sourceItem MediaItem
+---@param markerLabel string
+---@return number|nil sourceMarkerPosition
+function so.GetSourceGate(sourceItem, markerLabel)
 
     local sourceMarkerPos = so.GetTakeMarkerPositionByName(sourceItem, markerLabel)
 
@@ -548,18 +551,6 @@ end
 
 -------------------------------------------------------------------
 
-function so.PasteToTopLane(dstInIdx_rx)
-
-    local dstInIdx = dstInIdx_rx
-
-    r.GoToMarker(0, dstInIdx, false)
-    r.Main_OnCommand(42790, 0) -- play only first lane
-    r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
-
-end
-
--------------------------------------------------------------------
-
 function so.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
 
     local dstInLabel = dstInLabel_rx
@@ -574,8 +565,14 @@ function so.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
 end
 
 -------------------------------------------------------------------
-
-function so.SetCrossfade(xfadeLen, curPos)    -- thanks chmaha
+---* Creates a time selection
+---* Selects only items in the top lane
+---* Fades selected items in time selection using action 40916 (Item: Crossfade items within time selection)
+---
+---If curPos is nil, current cursor position will be used.
+---@param xfadeLen number
+---@param curPos number|nil
+function so.SetCrossfade(xfadeLen, curPos)
 
     local currentCursorPos
     if curPos then
@@ -898,36 +895,11 @@ function so.HealAllSplits()
 
 end
 
--------------------------------------------------------------------
-
 --------------------------
 -- deprecated functions --
 --------------------------
 
----Function to set a Razor Edit Area based on given start and end points
----@param srcStart number
----@param srcEnd number
----@return boolean
-function so.SetRazorEditToSourceGates(srcStart, srcEnd)
-
-    if srcEnd <= srcStart then return false end
-
-    local countSelTrks = r.CountSelectedTracks( 0 )
-    local countAllTrks = r.CountTracks( 0 )
-
-    for i = 0, countAllTrks - 1 do
-        local track = r.GetTrack(0, i)
-        if countSelTrks == 0 or r.IsTrackSelected( track ) then
-        local razorStr = srcStart .. " " .. srcEnd .. ' ""'
-        local retval, stringNeedBig = r.GetSetMediaTrackInfo_String( track, "P_RAZOREDITS", razorStr, true )
-        end
-    end
-
-end
-
--------------------------------------------------------------------
-
-function GetItemsOnLane(flaggedGUID_rx)
+function so.GetItemsOnLane(flaggedGUID_rx)
 
     local flaggedGUID = flaggedGUID_rx
 
@@ -960,5 +932,6 @@ function GetItemsOnLane(flaggedGUID_rx)
 
 end
 
+-------------------------------------------------------------------
 
 return so
