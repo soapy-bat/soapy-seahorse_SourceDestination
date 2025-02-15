@@ -47,7 +47,7 @@ function CreateSyncMarker()
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
     local numSelectedItems = r.CountSelectedMediaItems(0)
-  
+
     -- Iterate through selected items
     for i = 0, numSelectedItems - 1 do
 
@@ -58,7 +58,7 @@ function CreateSyncMarker()
         -- Get the active take
         local activeTake = r.GetActiveTake(mediaItem)
         if not activeTake then return end
-        
+
         -- Remove existing MarkerLabel markers
         local numMarkers = r.GetNumTakeMarkers(activeTake)
         for i = numMarkers, 0, -1 do

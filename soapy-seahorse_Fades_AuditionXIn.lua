@@ -28,19 +28,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 local preRoll = 2                    -- audition pre-roll, in seconds
 local postRoll = 0                   -- audition post-roll, in seconds
 local cursorBias = 2                 -- 0, ..., 2 /// 1: center of fade
-local bool_TransportAutoStop = true  -- stops transport automatically after auditioning
-local bool_RemoveFade = false        -- auditions without the fade
+local bool_TransportAutoStop = true  -- stop transport automatically after auditioning
 local bool_KeepCursorPosition = true -- false: script will leave edit cursor at the center of the fade
+local bool_RemoveFade = false        -- audition without fade
 
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
-
-local tbl_mutedItems = {}
-local auditioningItems = {}
-local fadeLen, fadeLenAuto, fadeDir, fadeShape
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
@@ -50,88 +46,98 @@ local so = require("soapy-seahorse_Fades_Functions")
 -- main --
 ----------
 
-function Main()
+function AuditionFade_CrossfadeIn(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
 
-  r.Undo_BeginBlock()
-  r.PreventUIRefresh(1)
+  local tbl_mutedItems = {}
+  local auditioningItems = {}
+  local fadeLen, fadeLenAuto, fadeDir, fadeShape
 
-  local curPos = r.GetCursorPosition()
+  function AuditionFade_Main()
 
-  r.Main_OnCommand(42478, 0) -- play only lane under mouse
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
 
-  local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
+    local curPos = r.GetCursorPosition()
 
-  if bool_success then
+    r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
-    if bool_RemoveFade then
+    local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
 
-      auditioningItems = so.GetGroupedItems(item1GUID)
-      fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = so.GetFade(item1GUID, 1)
+    if bool_success then
 
-      for i = 1, #auditioningItems do
-        so.SetFade(auditioningItems[i], 1, 0, 0, 0, 0)
+      if bool_RemoveFade then
+
+        auditioningItems = so.GetGroupedItems(item1GUID)
+        fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = so.GetFade(item1GUID, 1)
+
+        for i = 1, #auditioningItems do
+          so.SetFade(auditioningItems[i], 1, 0, 0, 0, 0)
+        end
+
       end
 
+      local _, tbl_itemsToMute = so.GetNeighbors(item1GUID, 1, 1)
+
+      -- in case a new instance of an audition script has started before other scripts were able to complete
+      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      so.ToggleItemMute({item1GUID}, {}, 0)
+
+      -- no need to pass along safe items:
+      tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, {}, 1)
+      
+      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+
+      CheckPlayState()
+
+    else
+      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
     end
 
-    local _, tbl_itemsToMute = so.GetNeighbors(item1GUID, 1, 1)
+    if bool_KeepCursorPosition then
+      r.SetEditCurPos(curPos, false, false)
+    end
 
-    -- in case a new instance of an audition script has started before other scripts were able to complete
-    -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
-    so.ToggleItemMute({item1GUID}, {}, 0)
+    r.Undo_EndBlock("Audition X In", 0)
 
-    -- no need to pass along safe items:
-    tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, {}, 1)
-    
-    so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
-
-    CheckPlayState()
-
-  else
-    r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
   end
 
-  if bool_KeepCursorPosition then
-    r.SetEditCurPos(curPos, false, false)
-  end
+  ---------------
+  -- functions --
+  ---------------
 
-  r.Undo_EndBlock("Audition X In", 0)
+  function CheckPlayState()
 
-end
+    r.PreventUIRefresh(1)
 
----------------
--- functions --
----------------
+    local playState = r.GetPlayState()
 
-function CheckPlayState()
+    local bool_exit = false
 
-  r.PreventUIRefresh(1)
+    if playState == 0 then -- Transport is stopped
 
-  local playState = r.GetPlayState()
+      so.ToggleItemMute(tbl_mutedItems, {}, 0)
+      r.DeleteProjectMarker(0, 998, false)
 
-  local bool_exit = false
-
-  if playState == 0 then -- Transport is stopped
-
-    so.ToggleItemMute(tbl_mutedItems, {}, 0)
-    r.DeleteProjectMarker(0, 998, false)
-
-    if bool_RemoveFade then
-      for i = 1, #auditioningItems do
-        so.SetFade(auditioningItems[i], 1, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+      if bool_RemoveFade then
+        for i = 1, #auditioningItems do
+          so.SetFade(auditioningItems[i], 1, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+        end
       end
+
+      r.PreventUIRefresh(-1)
+      r.UpdateArrange()
+
+      bool_exit = true
     end
 
-    r.PreventUIRefresh(-1)
-    r.UpdateArrange()
+    if bool_exit then return end
 
-    bool_exit = true
+    -- Schedule the function to run continuously
+    r.defer(CheckPlayState)
+
   end
 
-  if bool_exit then return end
-
-  -- Schedule the function to run continuously
-  r.defer(CheckPlayState)
+  AuditionFade_Main()
 
 end
 
@@ -139,4 +145,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-Main()
+AuditionFade_CrossfadeIn(preRoll, postRoll, _, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)

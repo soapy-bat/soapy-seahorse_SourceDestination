@@ -38,11 +38,6 @@ local bool_KeepCursorPosition = true -- false: script will leave edit cursor at 
 
 local r = reaper
 
-local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
-local tbl_mutedItems = {}
-local targetItem = 2
-local rippleStateAll, rippleStatePer
-
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "?.lua"
 local so = require("soapy-seahorse_Fades_Functions")
@@ -51,73 +46,84 @@ local so = require("soapy-seahorse_Fades_Functions")
 -- main --
 ----------
 
-function Main()
+function AuditionFade_OriginalOut(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
 
-  r.Undo_BeginBlock()
-  r.PreventUIRefresh(1)
+  local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
+  local tbl_mutedItems = {}
+  local targetItem = 2
+  local rippleStateAll, rippleStatePer
 
-  local curPos = r.GetCursorPosition()
+  function AuditionOriginal_Main()
 
-  r.Main_OnCommand(42478, 0) -- play only lane under mouse
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
 
-  local bool_success, item1GUID, item2GUID, firstOrSecond = so.GetItemsNearMouse(cursorBias)
+    local curPos = r.GetCursorPosition()
 
-  if bool_success then
+    r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
-    rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
+    local bool_success, item1GUID, item2GUID = so.GetItemsNearMouse(cursorBias)
 
-    -- in case a new instance of an audition script has started before other scripts were able to complete
-    -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
-    so.ToggleItemMute({item2GUID}, {}, 0)
+    if bool_success then
 
-    item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
+      rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
 
-    so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+      -- in case a new instance of an audition script has started before other scripts were able to complete
+      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      so.ToggleItemMute({item2GUID}, {}, 0)
 
-    CheckPlayState()
-    
-  else
-    r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+      item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
+
+      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+
+      CheckPlayState()
+      
+    else
+      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+    end
+
+    if bool_KeepCursorPosition then
+      r.SetEditCurPos(curPos, false, false)
+    end
+
+    r.Undo_EndBlock("Audition Original Out", 0)
+
   end
 
-  if bool_KeepCursorPosition then
-    r.SetEditCurPos(curPos, false, false)
+  ---------------
+  -- functions --
+  ---------------
+
+  function CheckPlayState()
+
+    r.PreventUIRefresh(1)
+
+    local playState = r.GetPlayState()
+
+    local bool_exit = false
+
+    if playState == 0 then -- Transport is stopped
+
+      so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
+
+      r.DeleteProjectMarker(0, 998, false)
+
+      so.RestoreEditStates(rippleStateAll, rippleStatePer)
+
+      r.PreventUIRefresh(-1)
+      r.UpdateArrange()
+
+      bool_exit = true
+    end
+
+    if bool_exit then return end
+
+    -- Schedule the function to run continuously
+    r.defer(CheckPlayState)
+
   end
 
-  r.Undo_EndBlock("Audition Original Out", 0)
-
-end
-
----------------
--- functions --
----------------
-
-function CheckPlayState()
-
-  r.PreventUIRefresh(1)
-
-  local playState = r.GetPlayState()
-
-  local bool_exit = false
-
-  if playState == 0 then -- Transport is stopped
-
-    so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
-
-    r.DeleteProjectMarker(0, 998, false)
-
-    so.RestoreEditStates(rippleStateAll, rippleStatePer)
-
-    r.PreventUIRefresh(-1)
-    r.UpdateArrange()
-
-    bool_exit = true
-  end
-
-  if bool_exit then return end
-
-  -- Schedule the function to run continuously
-  r.defer(CheckPlayState)
+  AuditionOriginal_Main()
 
 end
 
@@ -125,4 +131,4 @@ end
 -- main execution starts here --
 --------------------------------
 
-Main()
+AuditionFade_OriginalOut(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)

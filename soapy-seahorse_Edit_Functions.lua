@@ -38,7 +38,6 @@ local bool_TargetItemUnderMouse = false         -- select item under mouse (no c
 
 local bool_KeepLaneSolo = true                  -- if false, lane solo jumps to comp lane after the edit
                                                 -- if multiple lanes were soloed, only last soloed lane will be selected
-
 ---------------
 -- variables --
 ---------------
