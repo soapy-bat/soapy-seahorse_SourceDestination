@@ -27,6 +27,286 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 local r = reaper
 local so = {}
 
+------------------------------------------
+-- functions:: major audition functions --
+--          audition crossfade          --
+------------------------------------------
+
+function so.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+
+  local auditioningItems1, auditioningItems2 = {}, {}
+  local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
+  local fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2 
+
+  function AuditionCrossfade_Main()
+
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
+    local bool_success, item1GUID, item2GUID = so.GetItemsNearMouse(cursorBias)
+
+    if bool_success then
+
+      if bool_RemoveFade then
+
+        auditioningItems1 = so.GetGroupedItems(item1GUID)
+        auditioningItems2 = so.GetGroupedItems(item2GUID)
+        fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1, _ = so.GetFade(item1GUID, 1)
+        fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2, _ = so.GetFade(item2GUID, 2)
+
+        for i = 1, #auditioningItems1 do
+          so.SetFade(auditioningItems1[i], 1, 0, 0, 0, 0)
+          so.SetFade(auditioningItems2[i], 2, 0, 0, 0, 0)
+        end
+
+      end
+
+      -- in case a new instance of an audition script has started before other scripts were able to complete
+      local tbl_safeItems1 = so.GetGroupedItems(item1GUID)
+      local tbl_safeItems2 = so.GetGroupedItems(item2GUID)
+      so.ToggleItemMute(tbl_safeItems1, {}, 0)
+      so.ToggleItemMute(tbl_safeItems2, {}, 0)
+
+      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+      AuditionCrossfade_CheckPlayState()
+    else
+      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+    end
+
+    if bool_KeepCursorPosition then
+      r.SetEditCurPos(curPos, false, false)
+    end
+
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
+    r.Undo_EndBlock("Audition Crossfade", 0)
+
+  end
+
+  function AuditionCrossfade_CheckPlayState()
+
+    local playState = r.GetPlayState()
+
+    local bool_success = false
+    local bool_exit = false
+
+    if playState == 0 then -- Transport is stopped
+
+      r.DeleteProjectMarker(0, 998, false)
+
+      if bool_RemoveFade then
+        for i = 1, #auditioningItems1 do
+          so.SetFade(auditioningItems1[i], 1, fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1)
+          so.SetFade(auditioningItems2[i], 2, fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2)
+        end
+      end
+
+      bool_exit = true
+    end
+
+    if bool_exit then return end
+
+    -- Schedule the function to run continuously
+    r.defer(AuditionCrossfade_CheckPlayState)
+
+  end
+
+  AuditionCrossfade_Main()
+
+end
+
+------------------------------------------
+-- functions:: major audition functions --
+-- audition to fade in or from fade out --
+------------------------------------------
+
+function so.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+
+  local tbl_mutedItems = {}
+  local auditioningItems = {}
+  local fadeLen, fadeLenAuto, fadeDir, fadeShape
+
+  local myItemGUID, bool_success
+
+  function AuditionFade_Main()
+
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
+    if targetItem == 1 then
+      bool_success, myItemGUID, _ = so.GetItemsNearMouse(cursorBias)
+    elseif targetItem == 2 then
+      bool_success, _, myItemGUID = so.GetItemsNearMouse(cursorBias)
+    end
+
+    if bool_success then
+
+      if bool_RemoveFade then
+
+        auditioningItems = so.GetGroupedItems(myItemGUID)
+        fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = so.GetFade(myItemGUID, targetItem)
+
+        for i = 1, #auditioningItems do
+          so.SetFade(auditioningItems[i], targetItem, 0, 0, 0, 0)
+        end
+
+      end
+
+      local _, tbl_itemsToMute = so.GetNeighbors(myItemGUID, targetItem, 1)
+
+      -- in case a new instance of an audition script has started before other scripts were able to complete
+      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      so.ToggleItemMute({myItemGUID}, {}, 0)
+
+      -- no need to pass along safe items:
+      tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, {}, 1)
+
+      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+
+      AuditionFade_CheckPlayState()
+
+    else
+      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+    end
+
+    if bool_KeepCursorPosition then
+      r.SetEditCurPos(curPos, false, false)
+    end
+
+    r.Undo_EndBlock("Audition X In", 0)
+
+  end
+
+  function AuditionFade_CheckPlayState()
+
+    r.PreventUIRefresh(1)
+
+    local playState = r.GetPlayState()
+
+    local bool_exit = false
+
+    if playState == 0 then -- Transport is stopped
+
+      so.ToggleItemMute(tbl_mutedItems, {}, 0)
+      r.DeleteProjectMarker(0, 998, false)
+
+      if bool_RemoveFade then
+        for i = 1, #auditioningItems do
+          so.SetFade(auditioningItems[i], targetItem, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+        end
+      end
+
+      r.PreventUIRefresh(-1)
+      r.UpdateArrange()
+
+      bool_exit = true
+    end
+
+    if bool_exit then return end
+
+    -- Schedule the function to run continuously
+    r.defer(AuditionFade_CheckPlayState)
+
+  end
+
+  AuditionFade_Main()
+
+end
+
+------------------------------------------
+-- functions:: major audition functions --
+--    audition orig. src. in or out     --
+------------------------------------------
+
+function so.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
+
+  local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
+  local tbl_mutedItems = {}
+  local rippleStateAll, rippleStatePer
+
+  function AuditionOriginal_Main()
+
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
+
+    local curPos = r.GetCursorPosition()
+
+    r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
+    local bool_success, item1GUID, item2GUID = so.GetItemsNearMouse(cursorBias)
+
+    if bool_success then
+
+      rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
+
+      -- in case a new instance of an audition script has started before other scripts were able to complete
+      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      if targetItem == 1 then
+        so.ToggleItemMute({item1GUID}, {}, 0)
+      elseif targetItem == 2 then
+        so.ToggleItemMute({item2GUID}, {}, 0)
+      end
+
+      item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
+
+      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+
+      AuditionOriginal_CheckPlayState()
+
+    else
+      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+    end
+
+    if bool_KeepCursorPosition then
+      r.SetEditCurPos(curPos, false, false)
+    end
+
+    r.Undo_EndBlock("Audition Original In", 0)
+
+  end
+
+  function AuditionOriginal_CheckPlayState()
+
+    r.PreventUIRefresh(1)
+
+    local playState = r.GetPlayState()
+
+    local bool_exit = false
+
+    if playState == 0 then -- Transport is stopped
+
+      so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
+
+      r.DeleteProjectMarker(0, 998, false)
+
+      so.RestoreEditStates(rippleStateAll, rippleStatePer)
+
+      r.PreventUIRefresh(-1)
+      r.UpdateArrange()
+
+      bool_exit = true
+
+    end
+
+    if bool_exit then return end
+
+    -- Schedule the function to run continuously
+    r.defer(AuditionOriginal_CheckPlayState)
+
+  end
+
+  AuditionOriginal_Main()
+
+end
+
 --------------------------------------------
 -- functions: information retrieval (get) --
 --------------------------------------------
@@ -223,7 +503,9 @@ function so.GetItemsOnTrack(flaggedGUID_rx)
 end
 
 -------------------------------------------------------
-
+---Get (vertically) grouped items
+---@param itemGUID_rx itemGUID
+---@return table tbl_groupedItemsGUID
 function so.GetGroupedItems(itemGUID_rx)
 -- working with select states is more efficient in this case but causes the items to flicker
 
