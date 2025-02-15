@@ -40,8 +40,12 @@ local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
-local so = require("soapy-seahorse_Fades_Functions")
+local sf = require("soapy-seahorse_Fades_Functions")
 
 local targetItem = 1
 
-so.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
+---------------------------
+-- execution starts here --
+---------------------------
+
+sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)

@@ -27,20 +27,10 @@ local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
-local so = require("soapy-seahorse_Edit_Functions")
+local se = require("soapy-seahorse_Edit_Functions")
 
-----------
--- main --
-----------
+---------------------------
+-- execution starts here --
+---------------------------
 
-function Main()
-
-    so.FourPointEdit()
-
-end
-
---------------------------------
--- main execution starts here --
---------------------------------
-
-Main()
+se.FourPointEdit()

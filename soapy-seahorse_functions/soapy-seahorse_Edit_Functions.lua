@@ -26,24 +26,42 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 -- true = yes, false = no
 
-local xfadeLen = 0.05                           -- default: 50 milliseconds (0.05)
+-- three and four point edits
 
-local bool_AutoCrossfade = true                 -- fade newly edited items
+local xFadeLen = 0.05                               -- default: 50 milliseconds (0.05)
+local bool_AutoCrossfade = true                     -- fade newly edited items
+local bool_MoveDstGateAfterEdit = true              -- move destination gate to end of last pasted item (recommended)
+local bool_RemoveAllSourceGates = true              -- remove all source gates after the edit
+local bool_TargetItemUnderMouse = false             -- select item under mouse (no click to select required). for quick fade:
+local bool_KeepLaneSolo = true                      -- if false, lane solo jumps to comp lane after the edit
+                                                    -- if multiple lanes were soloed, only last soloed lane will be selected
 
-local bool_MoveDstGateAfterEdit = true          -- move destination gate to end of last pasted item (recommended)
+-- item extender and quick fade
 
-local bool_RemoveAllSourceGates = true         -- remove all source gates after the edit
+local bool_PreserveEditCursorPosition = true        -- if false, cursor will jump to the center between items
+local bool_SelectRightItemAtCleanup = true          -- keeps right item selected after script finished manipulating the items
+local bool_AvoidCollision = true                    -- experimental: avoids overlap of more than 2 items by adjusting the amout of extension automatically (if the items to be extended are very short)
+local bool_PreserveExistingCrossfade = true         -- experimental, sets a fade of the same length if there already is a crossfade
+local bool_TargetMouseInsteadOfCursor = true        -- true: sets fade at mouse cursor. false: sets fade at edit cursor
 
-local bool_TargetItemUnderMouse = false         -- select item under mouse (no click to select required)
+local extensionAmount = 0.5                         -- time that the items get extended by, in seconds
+local collisionPadding = 0.001                      -- leaves a tiny gap if collision detection is on
+local cursorBias_Extender = 0.5                     -- 0, ..., 1 /// 0.5: center of fade
+local cursorBias_QuickFade = 1                      -- 0, ..., 1 /// 0.5: center of fade
 
-local bool_KeepLaneSolo = true                  -- if false, lane solo jumps to comp lane after the edit
-                                                -- if multiple lanes were soloed, only last soloed lane will be selected
+local xFadeShape = 1                                -- default: equal power
+
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
-local so = {}
+
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
+local sf = require("soapy-seahorse_Fades_Functions")
+
+local se = {}
 
 local srcLabelIn = "SRC_IN"
 local srcLabelOut = "SRC_OUT"
@@ -56,7 +74,7 @@ local dstIdxOut = 997
 -- functions --
 ---------------
 
-function so.ThreePointEdit(bool_Ripple)
+function se.ThreePointEdit(bool_Ripple)
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -68,7 +86,7 @@ function so.ThreePointEdit(bool_Ripple)
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = so.PrepareEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = se.PrepareEditStates()
 
     if bool_Ripple then
         if rippleStatePer == 0 then
@@ -80,8 +98,8 @@ function so.ThreePointEdit(bool_Ripple)
     ---##### get coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
-    local timeSelStart, timeSelEnd = so.GetTimeSelection()
-    local loopStart, loopEnd = so.GetLoopPoints()
+    local timeSelStart, timeSelEnd = se.GetTimeSelection()
+    local loopStart, loopEnd = se.GetLoopPoints()
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -91,10 +109,10 @@ function so.ThreePointEdit(bool_Ripple)
     local sourceItem = r.GetSelectedMediaItem(0,0)
     if not sourceItem then return end
 
-    local sourceGateIn = so.GetSourceGate(sourceItem, srcLabelIn)
+    local sourceGateIn = se.GetSourceGate(sourceItem, srcLabelIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = so.GetSourceGate(sourceItem, srcLabelOut)
+    local sourceGateOut = se.GetSourceGate(sourceItem, srcLabelOut)
     if not sourceGateOut then return end
 
     local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
@@ -102,12 +120,12 @@ function so.ThreePointEdit(bool_Ripple)
 
     local tbl_PlayingLanes
     if bool_KeepLaneSolo then
-        tbl_PlayingLanes = so.GetLaneSolo(targetTrack)
+        tbl_PlayingLanes = se.GetLaneSolo(targetTrack)
     end
 
     ---##### src copy routine #####---
 
-    so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+    se.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
@@ -117,7 +135,7 @@ function so.ThreePointEdit(bool_Ripple)
     ---##### paste source to destination #####---
 
     if bool_Ripple then
-        so.ToggleLockItemsInSourceLanes(1)
+        se.ToggleLockItemsInSourceLanes(1)
     end
 
     -- paste source material
@@ -126,7 +144,7 @@ function so.ThreePointEdit(bool_Ripple)
     r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
     if bool_Ripple then
-        so.ToggleLockItemsInSourceLanes(0)
+        se.ToggleLockItemsInSourceLanes(0)
     end
 
     ---##### cleanup: set new dst gate, set xfade, clean up src gates #####---
@@ -136,10 +154,10 @@ function so.ThreePointEdit(bool_Ripple)
     if bool_AutoCrossfade then
         -- go to start of pasted item, set fade
         r.GoToMarker(0, dstIdxIn, false)
-        so.SetCrossfade(xfadeLen)
+        se.SetCrossfade(xFadeLen)
     end
 
-    so.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
+    se.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -147,24 +165,24 @@ function so.ThreePointEdit(bool_Ripple)
 
     if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        so.SetDstGateIn(dstLabelIn, dstIdxIn)  -- move destination gate in to end of pasted material (assembly line style)
+        se.SetDstGateIn(dstLabelIn, dstIdxIn)  -- move destination gate in to end of pasted material (assembly line style)
     end
 
     if bool_RemoveAllSourceGates then
-        so.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
+        se.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
-        so.SetLaneSolo(sourceItem, tbl_PlayingLanes)
+        se.SetLaneSolo(sourceItem, tbl_PlayingLanes)
     end
 
-    so.SetTimeSelection(timeSelStart, timeSelEnd)
-    so.SetLoopPoints(loopStart, loopEnd)
+    se.SetTimeSelection(timeSelStart, timeSelEnd)
+    se.SetLoopPoints(loopStart, loopEnd)
 
-    so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+    se.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -180,7 +198,9 @@ function so.ThreePointEdit(bool_Ripple)
     end
 end
 
-function so.FourPointEdit()
+-------------------------------------------
+
+function se.FourPointEdit()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -192,7 +212,7 @@ function so.FourPointEdit()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = so.PrepareEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = se.PrepareEditStates()
 
     r.Main_OnCommand(40309, 1) -- Set ripple editing off
     r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
@@ -200,8 +220,8 @@ function so.FourPointEdit()
     ---##### get all coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
-    local timeSelStart, timeSelEnd = so.GetTimeSelection()
-    local loopStart, loopEnd = so.GetLoopPoints()
+    local timeSelStart, timeSelEnd = se.GetTimeSelection()
+    local loopStart, loopEnd = se.GetLoopPoints()
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -213,16 +233,16 @@ function so.FourPointEdit()
     local sourceItem = r.GetSelectedMediaItem(0, 0)
     if not sourceItem then return end
 
-    local sourceGateIn = so.GetSourceGate(sourceItem, srcLabelIn)
+    local sourceGateIn = se.GetSourceGate(sourceItem, srcLabelIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = so.GetSourceGate(sourceItem, srcLabelOut)
+    local sourceGateOut = se.GetSourceGate(sourceItem, srcLabelOut)
     if not sourceGateOut then return end
 
-    local dstInPos = so.GetDstGate(dstIdxIn)
+    local dstInPos = se.GetDstGate(dstIdxIn)
     if not dstInPos then return end
 
-    local dstOutPos = so.GetDstGate(dstIdxOut)
+    local dstOutPos = se.GetDstGate(dstIdxOut)
     if not dstOutPos then return end
 
     local targetTrack = r.GetMediaItem_Track(sourceItem)
@@ -230,18 +250,18 @@ function so.FourPointEdit()
 
     local tbl_PlayingLanes
     if bool_KeepLaneSolo then
-        tbl_PlayingLanes = so.GetLaneSolo(targetTrack)
+        tbl_PlayingLanes = se.GetLaneSolo(targetTrack)
     end
 
     ---##### calculate offset and move items on comp lane accordingly #####---
 
-    local destinationDifference = so.CalcDstOffset(sourceGateIn, sourceGateOut, dstInPos, dstOutPos)
-    so.ClearDestinationArea(dstInPos, dstOutPos)
-    so.ShiftDestinationItems(destinationDifference, dstOutPos)
+    local destinationDifference = se.CalcDstOffset(sourceGateIn, sourceGateOut, dstInPos, dstOutPos)
+    se.ClearDestinationArea(dstInPos, dstOutPos)
+    se.ShiftDestinationItems(destinationDifference, dstOutPos)
 
     ---##### src copy routine #####---
 
-    so.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
+    se.SetTimeSelectionToSourceGates(sourceGateIn, sourceGateOut) -- time selection is used to copy items
 
     r.SetMediaItemSelected(sourceItem, true)
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
@@ -263,13 +283,13 @@ function so.FourPointEdit()
 
     if bool_AutoCrossfade then
         r.GoToMarker(0, dstIdxIn, false) -- go to start of pasted item
-        so.SetCrossfade(xfadeLen)
+        se.SetCrossfade(xFadeLen)
 
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        so.SetCrossfade(xfadeLen)
+        se.SetCrossfade(xFadeLen)
     end
 
-    so.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
+    se.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -277,11 +297,11 @@ function so.FourPointEdit()
 
     if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        so.SetDstGateIn(dstLabelIn, dstIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
+        se.SetDstGateIn(dstLabelIn, dstIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
     end
 
     if bool_RemoveAllSourceGates then
-        so.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
+        se.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
     r.DeleteProjectMarker(0, dstIdxOut, false)
@@ -290,13 +310,13 @@ function so.FourPointEdit()
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
-        so.SetLaneSolo(sourceItem, tbl_PlayingLanes)
+        se.SetLaneSolo(sourceItem, tbl_PlayingLanes)
     end
 
-    so.SetTimeSelection(timeSelStart, timeSelEnd)
-    so.SetLoopPoints(loopStart, loopEnd)
+    se.SetTimeSelection(timeSelStart, timeSelEnd)
+    se.SetLoopPoints(loopStart, loopEnd)
 
-    so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+    se.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
     r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
@@ -310,11 +330,271 @@ function so.FourPointEdit()
 
 end
 
+-------------------
+-- item extender --
+-------------------
+
+function se.ExtendItems_Main()
+
+  r.Undo_BeginBlock()
+  r.PreventUIRefresh(1)
+
+  local curPos = r.GetCursorPosition()
+
+  local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
+  r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
+  r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
+
+  local item1GUID, item2GUID = se.ItemExtender(_, 1)
+  if not item1GUID or not item2GUID then return end
+
+  if bool_SelectRightItemAtCleanup then
+
+    local mediaItem2 = r.BR_GetMediaItemByGUID(0, item2GUID)
+    if not mediaItem2 then return end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetMediaItemSelected(mediaItem2, true)
+
+  end
+
+  local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
+  r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
+
+  if bool_PreserveEditCursorPosition then
+    r.SetEditCurPos(curPos, false, false)
+  end
+
+  r.PreventUIRefresh(-1)
+  r.UpdateArrange()
+  r.Undo_EndBlock("Extend items", 0)
+
+end
+
+-------------------------------------------
+
+function se.ItemExtender(scriptCommand_rx, newToggleState_rx)
+
+  -- ## get items ## --
+  local _, _, _, _, itemGUID = sf.GetItemsNearMouse(cursorBias_Extender)
+
+  if not itemGUID then se.ErrMsgHover() return end
+
+  -- ## extend items ## --
+  local mediaItem = {}
+  for i = 1, #itemGUID do
+    mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
+  end
+  for i = 1, #mediaItem do
+    if not mediaItem[i] then se.ErrMsgHover() return end
+  end
+
+  if bool_AvoidCollision then
+
+    -- ## avoid collision: get item edges ## --
+    local itemStart, itemEnd, itemFade = {}, {}, {}
+
+    itemStart[1], _, itemEnd[1] = se.GetItemStartLengthEnd(mediaItem[1])
+    itemStart[2], _, itemEnd[2] = se.GetItemStartLengthEnd(mediaItem[2])
+
+    itemFade[1], _ = se.GetItemLargestFade(mediaItem[1])
+    _, itemFade[2] = se.GetItemLargestFade(mediaItem[2])
+
+    -- avoid crashing right item's starts into left item's start
+    local gapLeft = itemStart[2] - itemStart[1] - itemFade[1] - collisionPadding
+    -- avoid crashing left item's end into right item's end
+    local gapRight = itemEnd[2] - itemEnd[1] - itemFade[2] - collisionPadding
+
+    -- ## avoid collision: calculate ## --
+
+    local smallestGap
+    if gapLeft < gapRight then
+      smallestGap = gapLeft
+    else
+      smallestGap = gapRight
+    end
+
+    if smallestGap < extensionAmount then
+      extensionAmount = smallestGap
+    end
+
+  end
+
+  local bool_success = sf.LenghtenItem(mediaItem[1], 1, 1, extensionAmount)
+  bool_success = sf.LenghtenItem(mediaItem[2], 2, 1, extensionAmount)
+
+  if bool_success then
+    return itemGUID[1], itemGUID[2]
+  else
+    r.ShowMessageBox("Item Extender unsuccessful.", "sorry!", 0)
+    return
+  end
+
+end
+
+----------------
+-- quick fade --
+----------------
+
+function se.QuickFade_Main()
+
+    r.Undo_BeginBlock()
+    r.PreventUIRefresh(1)
+
+    local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
+    r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
+    r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
+
+    local curPosOrigin = r.GetCursorPosition()
+    local timeSelStart, timeSelEnd = se.GetTimeSelection()
+    local loopStart, loopEnd = se.GetLoopPoints()
+
+    -- ## get / set cursor position ## --
+
+    if bool_TargetMouseInsteadOfCursor then
+        r.Main_OnCommand(40514, 0) -- View: Move edit cursor to mouse cursor (no snapping)
+    end
+
+    local curPos = r.GetCursorPosition()
+
+    -- ## get items ## --
+
+    local _, item1GUID, item2GUID, _ = sf.GetItemsNearMouse(cursorBias_QuickFade)
+    if not item1GUID then se.QuickFade_Cleanup(_, curPos, curPosOrigin) return end
+    if not item2GUID then se.QuickFade_Cleanup(_, curPos, curPosOrigin) return end
+
+    local tbl_mediaItem = {}
+    table.insert(tbl_mediaItem, r.BR_GetMediaItemByGUID(0, item1GUID))
+    table.insert(tbl_mediaItem, r.BR_GetMediaItemByGUID(0, item2GUID))
+
+    for i = 1, #tbl_mediaItem do
+        if not tbl_mediaItem[i] then se.QuickFade_Cleanup(_, curPos) return end
+    end
+
+    -- ## if requested: get fade length ## --
+
+    if bool_PreserveExistingCrossfade then
+
+        local success, fadeLen, fadeShape1, fadeShape2 = se.GetCrossfade(tbl_mediaItem, xFadeLen)
+
+        if success then
+
+            xFadeLen = fadeLen
+
+            if fadeShape1 == fadeShape2 then
+                xFadeShape = fadeShape1
+            end
+        end
+
+    end
+
+    -- ## manipulate items in order to be able to fade ## --
+
+    se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
+
+    -- ## select items ## --
+    se.SetOnlyItemsSelected(tbl_mediaItem)
+
+    -- ## perform crossfade ## --
+    se.SetCrossfade2(curPos, xFadeLen)
+
+    if bool_PreserveExistingCrossfade then
+        se.ResetFadeShape(tbl_mediaItem, xFadeShape)
+    end
+
+    -- ## clean up ## --
+
+    se.QuickFade_Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, loopStart, loopEnd)
+
+    r.PreventUIRefresh(-1)
+    r.UpdateArrange()
+    r.Undo_EndBlock("ReaPyr Quick Fade", 0)
+
+end
+
+-------------------------------------------
+
+function se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
+
+    for i = 1, #tbl_mediaItem do
+        if not tbl_mediaItem[i] then return end
+    end
+    if not curPos then return end
+
+    local item1Start = r.GetMediaItemInfo_Value(tbl_mediaItem[1], "D_POSITION")
+    local item1Len = r.GetMediaItemInfo_Value(tbl_mediaItem[1], "D_LENGTH")
+    local item1End = item1Start + item1Len
+
+    if item1End < curPos then
+
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.SetMediaItemSelected(tbl_mediaItem[1], true)
+        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+        for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+            local selItem = r.GetSelectedMediaItem(0, i)
+
+            if selItem then
+                r.BR_SetItemEdges(selItem, item1Start, curPos)
+            end
+        end
+    end
+
+    local item2Start = r.GetMediaItemInfo_Value(tbl_mediaItem[2], "D_POSITION")
+    local item2Len = r.GetMediaItemInfo_Value(tbl_mediaItem[2], "D_LENGTH")
+    local item2End = item2Start + item2Len
+
+    if item2Start > curPos then
+
+        r.Main_OnCommand(40289, 0) -- Deselect all items
+        r.SetMediaItemSelected(tbl_mediaItem[2], true)
+        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+        for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+            local selItem = r.GetSelectedMediaItem(0, i)
+
+            if selItem then
+                r.BR_SetItemEdges(selItem, curPos, item2End)
+            end
+        end
+
+    end
+
+end
+
+-------------------------------------------
+
+function se.QuickFade_Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart, timeSelEnd, loopStart, loopEnd)
+
+    local restoreXFadeState = r.NamedCommandLookup("_SWS_RESTOREXFD")
+    r.Main_OnCommand(restoreXFadeState, 0) -- SWS: Restore auto crossfade state
+
+    r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
+
+    se.SetTimeSelection(timeSelStart, timeSelEnd)
+    se.SetLoopPoints(loopStart, loopEnd)
+
+    if bool_PreserveEditCursorPosition then
+        r.SetEditCurPos(curPosOrigin, false, false)
+    else
+        r.SetEditCurPos(curPos, false, false)
+    end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    if bool_SelectRightItemAtCleanup then
+        if not tbl_mediaItem then se.ErrMsgHover() return end
+        r.SetMediaItemSelected(tbl_mediaItem[2], true)
+    end
+
+end
+
 -----------
 -- utils --
 -----------
 
-function so.GetTimeSelection()
+function se.GetTimeSelection()
 
     local timeSelStart, timeSelEnd = r.GetSet_LoopTimeRange2(0, false, false, 0, 0, true)
 
@@ -324,7 +604,7 @@ end
 
 -------------------------------------------
 
-function so.SetTimeSelection(timeSelStart, timeSelEnd)
+function se.SetTimeSelection(timeSelStart, timeSelEnd)
 
     if not timeSelStart or not timeSelEnd then return end
 
@@ -337,7 +617,7 @@ end
 ---Get start and end position of loop points in session using r.GetSet_LoopTimeRange2()
 ---@return number loopStart
 ---@return number loopEnd
-function so.GetLoopPoints()
+function se.GetLoopPoints()
 
     local loopStart, loopEnd = r.GetSet_LoopTimeRange2(0, false, true, 0, 0, true)
 
@@ -349,7 +629,7 @@ end
 ---Set start and end position of loop points in session using r.GetSet_LoopTimeRange2()
 ---@param loopStart number
 ---@param loopEnd number
-function so.SetLoopPoints(loopStart, loopEnd)
+function se.SetLoopPoints(loopStart, loopEnd)
 
     if not loopStart or not loopEnd then return end
 
@@ -361,7 +641,7 @@ end
 ---Get solo states of a given media track using r.GetMediaTrackInfo_Value()
 ---@param selTrack MediaTrack
 ---@return table tbl_playingLanes
-function so.GetLaneSolo(selTrack)
+function se.GetLaneSolo(selTrack)
 
     local tbl_PlayingLanes = {}
 
@@ -386,9 +666,9 @@ end
 ---sets lane solo for first active lane (impossible to set multiple lane solos via script)
 ---@param selItem MediaItem
 ---@param tbl_PlayingLanes table
-function so.SetLaneSolo(selItem, tbl_PlayingLanes)
+function se.SetLaneSolo(selItem, tbl_PlayingLanes)
 
-    local tbl_groupedTracks = so.GetTracksOfItemGroup(selItem)
+    local tbl_groupedTracks = se.GetTracksOfItemGroup(selItem)
 
     for i = 1, #tbl_groupedTracks do
 
@@ -405,7 +685,7 @@ end
 ---get list of tracks based on grouped items (usually the main editing group)
 ---@param selItem MediaItem
 ---@return table tbl_groupedTracks
-function so.GetTracksOfItemGroup(selItem)
+function se.GetTracksOfItemGroup(selItem)
 
     local tbl_groupedTracks = {}
 
@@ -433,17 +713,66 @@ end
 
 -------------------------------------------------------------------
 
-function so.GetGroupedTracks(selTrack)
+function se.GetGroupedTracks(selTrack)
 
     -- only checks first 32 groups atm
 
     local isEditLead = r.GetSetTrackGroupMembership(selTrack, "MEDIA_EDIT_LEAD", 0, 0)
     local isEditFollow = r.GetSetTrackGroupMembership(selTrack, "MEDIA_EDIT_FOLLOW", 0, 0)
 
-    isEditLead = so.DecToBin(isEditLead)
-    isEditFollow = so.DecToBin(isEditFollow)
+    isEditLead = se.DecToBin(isEditLead)
+    isEditFollow = se.DecToBin(isEditFollow)
 
     return isEditLead, isEditFollow
+end
+
+------------------------------------------------
+
+function se.GetItemStartLengthEnd(mediaItem)
+
+    local itemStart = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
+    local itemLength = r.GetMediaItemInfo_Value(mediaItem, "D_LENGTH")
+    local itemEnd = itemStart + itemLength
+
+    return itemStart, itemLength, itemEnd
+
+end
+
+------------------------------------------------
+
+function se.GetItemLargestFade(mediaItem)
+
+    local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
+    local fadeInLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN_AUTO")
+    local fadeOutLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN")
+    local fadeOutLenAuto = r.GetMediaItemInfo_Value(mediaItem, "D_FADEOUTLEN_AUTO")
+
+    if fadeInLen < fadeInLenAuto then
+        fadeInLen = fadeInLenAuto
+    end
+
+    if fadeOutLen < fadeOutLenAuto then
+        fadeOutLen = fadeOutLenAuto
+    end
+
+    return fadeInLen, fadeOutLen
+
+end
+
+-------------------------------------------
+
+function se.SetOnlyItemsSelected(tbl_mediaItem)
+
+    for i = 1, #tbl_mediaItem do
+        if not tbl_mediaItem[i] then return end
+    end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+
+    for i = 1, #tbl_mediaItem do
+        r.SetMediaItemSelected(tbl_mediaItem[i], true)
+        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+    end
 end
 
 -------------------------------------------------------------------
@@ -451,7 +780,7 @@ end
 ---Convert base 10 number to base 2 number
 ---@param num integer
 ---@return number result
-function so.DecToBin(num)
+function se.DecToBin(num)
 
 	local bin = ""  -- Create an empty string to store the binary form
 	local rem  -- Declare a variable to store the remainder
@@ -475,9 +804,9 @@ end
 ---@param sourceItem MediaItem
 ---@param markerLabel string
 ---@return number|nil sourceMarkerPosition
-function so.GetSourceGate(sourceItem, markerLabel)
+function se.GetSourceGate(sourceItem, markerLabel)
 
-    local sourceMarkerPos = so.GetTakeMarkerPositionByName(sourceItem, markerLabel)
+    local sourceMarkerPos = se.GetTakeMarkerPositionByName(sourceItem, markerLabel)
 
     if sourceMarkerPos then
         return sourceMarkerPos
@@ -489,7 +818,7 @@ end
 
 -------------------------------------------------------------------
 
-function so.GetTakeMarkerPositionByName(sourceItem_rx, markerName_rx)
+function se.GetTakeMarkerPositionByName(sourceItem_rx, markerName_rx)
 
     local sourceItem = sourceItem_rx
     local markerName = markerName_rx
@@ -523,7 +852,7 @@ end
 
 -------------------------------------------------------------------
 
-function so.GetDstGate(gateIdx) -- Find DST marker
+function se.GetDstGate(gateIdx) -- Find DST marker
 
     local _, numMarkers, numRegions = r.CountProjectMarkers(0)
 
@@ -540,7 +869,7 @@ end
 
 -------------------------------------------------------------------
 
-function so.SetTimeSelectionToSourceGates(srcStart, srcEnd)
+function se.SetTimeSelectionToSourceGates(srcStart, srcEnd)
     -- Function to set a Time Selection based on given start and end points
     if srcEnd <= srcStart then return false end
 
@@ -550,7 +879,7 @@ end
 
 -------------------------------------------------------------------
 
-function so.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
+function se.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
 
     local dstInLabel = dstInLabel_rx
     local dstInIdx = dstInIdx_rx
@@ -563,15 +892,50 @@ function so.SetDstGateIn(dstInLabel_rx, dstInIdx_rx)       -- thanks chmaha <3
     r.AddProjectMarker2(0, false, cursorPosition, 0, markerLabel, dstInIdx, markerColor | 0x1000000)
 end
 
+-------------------------------------------
+
+function se.GetCrossfade(tbl_mediaItem, xFadeLen)
+
+    -- only works with symmetrical crossfades
+
+    for i = 1, #tbl_mediaItem do
+        if not tbl_mediaItem[i] then return end
+    end
+    if not xFadeLen then return end
+
+    local item1FadeLen = r.GetMediaItemInfo_Value(tbl_mediaItem[1], "D_FADEOUTLEN")
+    local item1FadeLenAuto = r.GetMediaItemInfo_Value(tbl_mediaItem[1], "D_FADEOUTLEN_AUTO")
+    local item1FadeShape = r.GetMediaItemInfo_Value(tbl_mediaItem[1], "C_FADEOUTSHAPE")
+
+    local item2FadeLen = r.GetMediaItemInfo_Value(tbl_mediaItem[2], "D_FADEINLEN")
+    local item2FadeLenAuto = r.GetMediaItemInfo_Value(tbl_mediaItem[2], "D_FADEINLEN_AUTO")
+    local item2FadeShape = r.GetMediaItemInfo_Value(tbl_mediaItem[2], "C_FADEINSHAPE")
+
+    if item1FadeLen < item1FadeLenAuto then
+        item1FadeLen = item1FadeLenAuto
+    end
+
+    if item2FadeLen < item2FadeLenAuto then
+        item2FadeLen = item2FadeLenAuto
+    end
+
+    if item1FadeLen == item2FadeLen then
+        return true, item1FadeLen, item1FadeShape, item2FadeShape
+    else
+        return false, xFadeLen
+    end
+
+end
+
 -------------------------------------------------------------------
 ---* Creates a time selection
 ---* Selects only items in the top lane
 ---* Fades selected items in time selection using action 40916 (Item: Crossfade items within time selection)
 ---
 ---If curPos is nil, current cursor position will be used.
----@param xfadeLen number
+---@param xFadeLen number
 ---@param curPos number|nil
-function so.SetCrossfade(xfadeLen, curPos)
+function se.SetCrossfade(xFadeLen, curPos)
 
     local currentCursorPos
     if curPos then
@@ -580,8 +944,8 @@ function so.SetCrossfade(xfadeLen, curPos)
         currentCursorPos = r.GetCursorPosition()
     end
 
-    local fadeStart = currentCursorPos - xfadeLen/2
-    local fadeEnd = currentCursorPos + xfadeLen/2
+    local fadeStart = currentCursorPos - xFadeLen/2
+    local fadeEnd = currentCursorPos + xFadeLen/2
 
     r.GetSet_LoopTimeRange2(0, true, false, fadeStart, fadeEnd, true)
 
@@ -621,13 +985,64 @@ function so.SetCrossfade(xfadeLen, curPos)
 
 end
 
+-------------------------------------------
+
+function se.SetCrossfade2(curPos, xFadeLen)
+
+    -- ## set time selection ## --
+
+    r.Main_OnCommand(40020, 0)        -- Time Selection: Remove
+
+    r.SetEditCurPos(curPos - xFadeLen/2, false, false)
+    r.Main_OnCommand(40625, 0)        -- Time selection: Set start point
+
+    r.SetEditCurPos(curPos + xFadeLen/2, false, false)
+    r.Main_OnCommand(40626, 0)        -- Time selection: Set end point
+
+    -- ## perform fade (amagalma: smart crossfade) ## --
+
+    r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
+
+end
+-------------------------------------------
+
+function se.ResetFadeShape(tbl_mediaItem, xFadeShape)
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetMediaItemSelected(tbl_mediaItem[1], true)
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local selItem = r.GetSelectedMediaItem(0, i)
+
+        if selItem then
+            r.SetMediaItemInfo_Value(selItem, "C_FADEOUTSHAPE", xFadeShape)
+        end
+    end
+
+    r.Main_OnCommand(40289, 0) -- Deselect all items
+    r.SetMediaItemSelected(tbl_mediaItem[2], true)
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local selItem = r.GetSelectedMediaItem(0, i)
+
+        if selItem then
+            r.SetMediaItemInfo_Value(selItem, "C_FADEINSHAPE", xFadeShape)
+        end
+    end
+
+end
+
 ------------------------------------------
 ---* safeLane = (-1): remove only topmost lanes' source gates
 ---* safeLane = 0: remove ALL source gates
 ---@param safeLane integer
 ---@param sourceLabelIn string
 ---@param sourceLabelOut string
-function so.RemoveSourceGates(safeLane, sourceLabelIn, sourceLabelOut)
+function se.RemoveSourceGates(safeLane, sourceLabelIn, sourceLabelOut)
 
     r.SelectAllMediaItems(0, true)
 
@@ -685,7 +1100,7 @@ end
 
 ------------------------------------------
 
-function so.PrepareEditStates()
+function se.PrepareEditStates()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
@@ -697,7 +1112,7 @@ end
 
 ------------------------------------------
 
-function so.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
+function se.ResetEditStates(rippleStateAll, rippleStatePer, trimContentState)
 
     if rippleStateAll == 1 then
         r.Main_OnCommand(41991, 1)
@@ -715,7 +1130,7 @@ end
 
 ------------------------------------------
 
-function so.ToggleLockItemsInSourceLanes(lockState_rx)
+function se.ToggleLockItemsInSourceLanes(lockState_rx)
 
     local lockState = lockState_rx
 
@@ -746,7 +1161,7 @@ end
 
 ------------------------------------------
 
-function so.DebugBreakpoint()
+function se.DebugBreakpoint()
 
     r.ShowMessageBox("this is a breakpoint message", "Debugging in Progress...", 0)
 
@@ -754,7 +1169,7 @@ end
 
 ------------------------------------------
 
-function so.ErrMsgMissingData()
+function se.ErrMsgMissingData()
 
     r.ShowMessageBox("Something went wrong while handling data.", "Missing Data", 0)
 
@@ -762,8 +1177,24 @@ end
 
 ------------------------------------------
 
+function se.ErrMsgHover()
 
-function so.CalcDstOffset(srcStart, srcEnd, dstStart, dstEnd)
+    r.ShowMessageBox("Please hover the mouse over an item in order to extend items.", "Item Extender or Quick Fade unsuccessful", 0)
+
+end
+
+------------------------------------------------
+
+function se.RescueExtender()
+
+    local scriptCommand = r.NamedCommandLookup("_RS43a608374ea4fced06f7c4cf94c26724437b9a80")
+    r.SetToggleCommandState(1, scriptCommand, -1)
+
+end
+
+------------------------------------------------
+
+function se.CalcDstOffset(srcStart, srcEnd, dstStart, dstEnd)
 
     -- get amount that destination out needs to be moved by
 
@@ -780,12 +1211,12 @@ end
 
 -------------------------------------------------------------------
 
-function so.ClearDestinationArea(selStart, selEnd)
+function se.ClearDestinationArea(selStart, selEnd)
 
     -- clear area between destination markers using time and item selections
 
-    if not selStart then so.ErrMsgMissingData() return end
-    if not selEnd then so.ErrMsgMissingData() return end
+    if not selStart then se.ErrMsgMissingData() return end
+    if not selEnd then se.ErrMsgMissingData() return end
 
     r.SetEditCurPos(selStart, false, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
@@ -795,7 +1226,7 @@ function so.ClearDestinationArea(selStart, selEnd)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
 
-    so.SetTimeSelection(selStart, selEnd)
+    se.SetTimeSelection(selStart, selEnd)
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
     r.Main_OnCommand(40718, 0) -- Item: Select all items on selected tracks in current time selection
@@ -835,7 +1266,7 @@ end
 
 -------------------------------------------------------------------
 
-function so.ShiftDestinationItems(difference_rx, dstOutPos_rx)
+function se.ShiftDestinationItems(difference_rx, dstOutPos_rx)
 
     -- shift items only on topmost lane one by one (ripple only works with graphical input)
     -- media track needs to be selected
@@ -879,14 +1310,14 @@ function so.ShiftDestinationItems(difference_rx, dstOutPos_rx)
 
     end
 
-    so.HealAllSplits()
+    se.HealAllSplits()
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
 end
 
 -------------------------------------------------------------------
 
-function so.HealAllSplits()
+function se.HealAllSplits()
 
     r.Main_OnCommand(40182, 0) -- Select All
     r.Main_OnCommand(40548, 0) -- Heal splits in items
@@ -898,7 +1329,7 @@ end
 -- deprecated functions --
 --------------------------
 
-function so.GetItemsOnLane(flaggedGUID_rx)
+function se.GetItemsOnLane(flaggedGUID_rx)
 
     local flaggedGUID = flaggedGUID_rx
 
@@ -931,6 +1362,8 @@ function so.GetItemsOnLane(flaggedGUID_rx)
 
 end
 
--------------------------------------------------------------------
+--------------
+-- required --
+--------------
 
-return so
+return se

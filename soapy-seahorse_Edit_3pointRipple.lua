@@ -3,6 +3,7 @@
 source-destination edit: 3 point edit (with ripple)
 
 This file is part of the soapy-seahorse package.
+It requires the file "soapy-seahorse_Edit_Functions.lua"
 
 (C) 2024 the soapy zoo
 
@@ -26,16 +27,10 @@ local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
-local so = require("soapy-seahorse_Edit_Functions")
+local se = require("soapy-seahorse_Edit_Functions")
 
-----------
--- main --
-----------
+---------------------------
+-- execution starts here --
+---------------------------
 
-function Main()
-
-    so.ThreePointEdit(true)
-
-end
-
-Main()
+se.ThreePointEdit(true)

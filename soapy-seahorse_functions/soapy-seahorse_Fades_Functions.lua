@@ -25,14 +25,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 ---------------
 
 local r = reaper
-local so = {}
+local sf = {}
 
 ------------------------------------------
 -- functions:: major audition functions --
 --          audition crossfade          --
 ------------------------------------------
 
-function so.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+function sf.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
 
   local auditioningItems1, auditioningItems2 = {}, {}
   local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
@@ -47,31 +47,31 @@ function so.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_Tr
 
     r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
-    local bool_success, item1GUID, item2GUID = so.GetItemsNearMouse(cursorBias)
+    local bool_success, item1GUID, item2GUID = sf.GetItemsNearMouse(cursorBias)
 
     if bool_success then
 
       if bool_RemoveFade then
 
-        auditioningItems1 = so.GetGroupedItems(item1GUID)
-        auditioningItems2 = so.GetGroupedItems(item2GUID)
-        fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1, _ = so.GetFade(item1GUID, 1)
-        fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2, _ = so.GetFade(item2GUID, 2)
+        auditioningItems1 = sf.GetGroupedItems(item1GUID)
+        auditioningItems2 = sf.GetGroupedItems(item2GUID)
+        fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1, _ = sf.GetFade(item1GUID, 1)
+        fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2, _ = sf.GetFade(item2GUID, 2)
 
         for i = 1, #auditioningItems1 do
-          so.SetFade(auditioningItems1[i], 1, 0, 0, 0, 0)
-          so.SetFade(auditioningItems2[i], 2, 0, 0, 0, 0)
+          sf.SetFade(auditioningItems1[i], 1, 0, 0, 0, 0)
+          sf.SetFade(auditioningItems2[i], 2, 0, 0, 0, 0)
         end
 
       end
 
       -- in case a new instance of an audition script has started before other scripts were able to complete
-      local tbl_safeItems1 = so.GetGroupedItems(item1GUID)
-      local tbl_safeItems2 = so.GetGroupedItems(item2GUID)
-      so.ToggleItemMute(tbl_safeItems1, {}, 0)
-      so.ToggleItemMute(tbl_safeItems2, {}, 0)
+      local tbl_safeItems1 = sf.GetGroupedItems(item1GUID)
+      local tbl_safeItems2 = sf.GetGroupedItems(item2GUID)
+      sf.ToggleItemMute(tbl_safeItems1, {}, 0)
+      sf.ToggleItemMute(tbl_safeItems2, {}, 0)
 
-      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+      sf.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
       AuditionCrossfade_CheckPlayState()
     else
       r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
@@ -100,8 +100,8 @@ function so.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_Tr
 
       if bool_RemoveFade then
         for i = 1, #auditioningItems1 do
-          so.SetFade(auditioningItems1[i], 1, fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1)
-          so.SetFade(auditioningItems2[i], 2, fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2)
+          sf.SetFade(auditioningItems1[i], 1, fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1)
+          sf.SetFade(auditioningItems2[i], 2, fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2)
         end
       end
 
@@ -124,7 +124,7 @@ end
 -- audition to fade in or from fade out --
 ------------------------------------------
 
-function so.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+function sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
 
   local tbl_mutedItems = {}
   local auditioningItems = {}
@@ -142,34 +142,34 @@ function so.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cu
     r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
     if targetItem == 1 then
-      bool_success, myItemGUID, _ = so.GetItemsNearMouse(cursorBias)
+      bool_success, myItemGUID, _ = sf.GetItemsNearMouse(cursorBias)
     elseif targetItem == 2 then
-      bool_success, _, myItemGUID = so.GetItemsNearMouse(cursorBias)
+      bool_success, _, myItemGUID = sf.GetItemsNearMouse(cursorBias)
     end
 
     if bool_success then
 
       if bool_RemoveFade then
 
-        auditioningItems = so.GetGroupedItems(myItemGUID)
-        fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = so.GetFade(myItemGUID, targetItem)
+        auditioningItems = sf.GetGroupedItems(myItemGUID)
+        fadeLen, fadeLenAuto, fadeDir, fadeShape, _ = sf.GetFade(myItemGUID, targetItem)
 
         for i = 1, #auditioningItems do
-          so.SetFade(auditioningItems[i], targetItem, 0, 0, 0, 0)
+          sf.SetFade(auditioningItems[i], targetItem, 0, 0, 0, 0)
         end
 
       end
 
-      local _, tbl_itemsToMute = so.GetNeighbors(myItemGUID, targetItem, 1)
+      local _, tbl_itemsToMute = sf.GetNeighbors(myItemGUID, targetItem, 1)
 
       -- in case a new instance of an audition script has started before other scripts were able to complete
-      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
-      so.ToggleItemMute({myItemGUID}, {}, 0)
+      -- sf.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      sf.ToggleItemMute({myItemGUID}, {}, 0)
 
       -- no need to pass along safe items:
-      tbl_mutedItems = so.ToggleItemMute(tbl_itemsToMute, {}, 1)
+      tbl_mutedItems = sf.ToggleItemMute(tbl_itemsToMute, {}, 1)
 
-      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+      sf.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
       AuditionFade_CheckPlayState()
 
@@ -195,12 +195,12 @@ function so.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cu
 
     if playState == 0 then -- Transport is stopped
 
-      so.ToggleItemMute(tbl_mutedItems, {}, 0)
+      sf.ToggleItemMute(tbl_mutedItems, {}, 0)
       r.DeleteProjectMarker(0, 998, false)
 
       if bool_RemoveFade then
         for i = 1, #auditioningItems do
-          so.SetFade(auditioningItems[i], targetItem, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+          sf.SetFade(auditioningItems[i], targetItem, fadeLen, fadeLenAuto, fadeDir, fadeShape)
         end
       end
 
@@ -226,7 +226,7 @@ end
 --    audition orig. src. in or out     --
 ------------------------------------------
 
-function so.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
+function sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
 
   local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
   local tbl_mutedItems = {}
@@ -241,23 +241,23 @@ function so.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cur
 
     r.Main_OnCommand(42478, 0) -- play only lane under mouse
 
-    local bool_success, item1GUID, item2GUID = so.GetItemsNearMouse(cursorBias)
+    local bool_success, item1GUID, item2GUID = sf.GetItemsNearMouse(cursorBias)
 
     if bool_success then
 
-      rippleStateAll, rippleStatePer = so.SaveEditStates() -- save autocrossfade state
+      rippleStateAll, rippleStatePer = sf.SaveEditStates() -- save autocrossfade state
 
       -- in case a new instance of an audition script has started before other scripts were able to complete
-      -- so.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
+      -- sf.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
       if targetItem == 1 then
-        so.ToggleItemMute({item1GUID}, {}, 0)
+        sf.ToggleItemMute({item1GUID}, {}, 0)
       elseif targetItem == 2 then
-        so.ToggleItemMute({item2GUID}, {}, 0)
+        sf.ToggleItemMute({item2GUID}, {}, 0)
       end
 
-      item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = so.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
+      item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = sf.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
 
-      so.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
+      sf.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
       AuditionOriginal_CheckPlayState()
 
@@ -283,11 +283,11 @@ function so.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cur
 
     if playState == 0 then -- Transport is stopped
 
-      so.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
+      sf.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
 
       r.DeleteProjectMarker(0, 998, false)
 
-      so.RestoreEditStates(rippleStateAll, rippleStatePer)
+      sf.RestoreEditStates(rippleStateAll, rippleStatePer)
 
       r.PreventUIRefresh(-1)
       r.UpdateArrange()
@@ -311,7 +311,7 @@ end
 -- functions: information retrieval (get) --
 --------------------------------------------
 
-function so.GetItemsNearMouse(cursorBias_rx, range_rx)
+function sf.GetItemsNearMouse(cursorBias_rx, range_rx)
 
   local cursorBias = cursorBias_rx
   local range = range_rx
@@ -348,9 +348,9 @@ function so.GetItemsNearMouse(cursorBias_rx, range_rx)
 
   tbl_itemGUID[pri] = r.BR_GetMediaItemGUID(mediaItem)
   if range == 1 then
-    tbl_itemGUID[sec], _ = so.GetNeighbors(tbl_itemGUID[pri], pri, range)
+    tbl_itemGUID[sec], _ = sf.GetNeighbors(tbl_itemGUID[pri], pri, range)
   else
-    _, tbl_itemGUID = so.GetNeighbors(tbl_itemGUID[pri], pri, range)
+    _, tbl_itemGUID = sf.GetNeighbors(tbl_itemGUID[pri], pri, range)
   end
 
   if not tbl_itemGUID then
@@ -363,7 +363,7 @@ function so.GetItemsNearMouse(cursorBias_rx, range_rx)
     return
   end
 
-  bool_success = so.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
+  bool_success = sf.SetEditCurPosCenterEdges(tbl_itemGUID[1], tbl_itemGUID[2], cursorBias)
 
   return bool_success, tbl_itemGUID[1], tbl_itemGUID[2], pri, tbl_itemGUID
 
@@ -371,7 +371,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
+function sf.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   -- audition target tells us if the flagged item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
@@ -383,7 +383,7 @@ function so.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   -- get array of items on fixed lane
 
-  local tbl_laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
+  local tbl_laneItemsGUID = sf.GetItemsOnLane(flaggedGUID)
   if not tbl_laneItemsGUID then return end
 
   -- get index of flagged item
@@ -435,7 +435,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetItemsOnLane(flaggedGUID_rx)
+function sf.GetItemsOnLane(flaggedGUID_rx)
 
   local flaggedGUID = flaggedGUID_rx
 
@@ -472,7 +472,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetItemsOnTrack(flaggedGUID_rx)
+function sf.GetItemsOnTrack(flaggedGUID_rx)
 
   local flaggedGUID = flaggedGUID_rx
 
@@ -506,7 +506,7 @@ end
 ---Get (vertically) grouped items
 ---@param itemGUID_rx itemGUID
 ---@return table tbl_groupedItemsGUID
-function so.GetGroupedItems(itemGUID_rx)
+function sf.GetGroupedItems(itemGUID_rx)
 -- working with select states is more efficient in this case but causes the items to flicker
 
   local itemGUID = itemGUID_rx
@@ -545,7 +545,7 @@ end
 -- functions: parameter manipulation (set / toggle) --
 ------------------------------------------------------
 
-function so.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
+function sf.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
 
   local bool_success = false
 
@@ -593,7 +593,7 @@ end
 
 -------------------------------------------------------
 
-function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx, tbl_mutedItems_rx)
+function sf.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx, tbl_mutedItems_rx)
 
   local tbl_itemGUID = {}
   tbl_itemGUID[1] = item1GUID_rx
@@ -601,7 +601,7 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
 
   local timeAmount = timeAmount_rx
   local itemToExtend = itemToExtend_rx
-  local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see so.LenghtenItem)
+  local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see sf.LenghtenItem)
   local tbl_mutedItems = tbl_mutedItems_rx
 
   local mediaItem = {}
@@ -628,17 +628,17 @@ function so.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
     muteState = 0
     itemsToMute = tbl_mutedItems
   elseif muteState == 1 then
-    _, itemsToMute = so.GetNeighbors(tbl_itemGUID[pri], pri, 2)
+    _, itemsToMute = sf.GetNeighbors(tbl_itemGUID[pri], pri, 2)
   end
 
-  tbl_mutedItems = so.ToggleItemMute(itemsToMute, {}, muteState)
+  tbl_mutedItems = sf.ToggleItemMute(itemsToMute, {}, muteState)
 
   -- ###### lenghten primary item ###### --
 
   mediaItem[pri] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[pri])
 
   if mediaItem[pri] then
-    so.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, timeAmount)
+    sf.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, timeAmount)
   end
   
   return tbl_itemGUID[1], tbl_itemGUID[2], timeAmount, itemToExtend, tbl_mutedItems
@@ -647,7 +647,7 @@ end
 
 -------------------------------------------------------
 
-function so.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmount_rx)
+function sf.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmount_rx)
 
   -- function assumes all items in group to be at the same length and position
 
@@ -700,7 +700,7 @@ end
 
 -------------------------------------------------------
 
-function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteState_rx)
+function sf.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteState_rx)
 
   local tbl_mediaItemGUIDs = tbl_mediaItemGUIDs_rx
   local tbl_safeItemsGUID = tbl_safeItemsGUID_rx
@@ -710,7 +710,7 @@ function so.ToggleItemMute(tbl_mediaItemGUIDs_rx, tbl_safeItemsGUID_rx, muteStat
 
   for h = 1, #tbl_mediaItemGUIDs do
 
-    local tbl_groupedItems = so.GetGroupedItems(tbl_mediaItemGUIDs[h])
+    local tbl_groupedItems = sf.GetGroupedItems(tbl_mediaItemGUIDs[h])
 
     for k = 1, #tbl_groupedItems do
 
@@ -740,7 +740,7 @@ end
 
 -------------------------------------------------------
 
-function so.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
+function sf.AuditionFade(preRoll_rx, postRoll_rx, bool_TransportAutoStop_rx)
 
   local preRoll = preRoll_rx
   local postRoll = postRoll_rx
@@ -776,7 +776,7 @@ end
 -- functions: peanuts (small get / set helpers) --
 --------------------------------------------------
 
-function so.SaveEditStates()
+function sf.SaveEditStates()
 
   local saveXFadeCommand = r.NamedCommandLookup("_SWS_SAVEXFD")
   r.Main_OnCommand(saveXFadeCommand, 1) -- SWS: Save auto crossfade state
@@ -794,7 +794,7 @@ end
 
 -------------------------------------------------------
 
-function so.RestoreEditStates(rippleStateAll, rippleStatePer)
+function sf.RestoreEditStates(rippleStateAll, rippleStatePer)
 
   local restoreXFadeCommand = r.NamedCommandLookup("_SWS_RESTOREXFD")
   r.Main_OnCommand(restoreXFadeCommand, 1) -- SWS: Restore auto crossfade state
@@ -809,7 +809,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetFade(itemGUID_rx, inOrOut_rx)
+function sf.GetFade(itemGUID_rx, inOrOut_rx)
 
   local itemGUID = itemGUID_rx
   local inOrOut = inOrOut_rx
@@ -843,7 +843,7 @@ end
 
 -------------------------------------------------------
 
-function so.SetFade(itemGUID, inOrOut, fadeLen, fadeLenAuto, fadeDir, fadeShape)
+function sf.SetFade(itemGUID, inOrOut, fadeLen, fadeLenAuto, fadeDir, fadeShape)
 
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
   if not mediaItem then return end
@@ -872,7 +872,7 @@ end
 -- deprecated functions --
 --------------------------
 
-function so.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
+function sf.SetEditCurPosCenterFade(mediaItem_rx, mouseTarget_rx, cursorBias_rx)
 
   -- there are 2 types of fade in/out lengths
   -- the script will only use the larger value of the two
@@ -915,7 +915,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetGroupedItems2(itemGUID_rx) -- warning: inefficient!
+function sf.GetGroupedItems2(itemGUID_rx) -- warning: inefficient!
 
   local itemGUID = itemGUID_rx
   local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
@@ -925,7 +925,7 @@ function so.GetGroupedItems2(itemGUID_rx) -- warning: inefficient!
   local groupID = r.GetMediaItemInfo_Value(mediaItem, "I_GROUPID")
   if groupID ~= 0 then
 
-    local tbl_allItemsGUID = so.GetAllItemsGUID()
+    local tbl_allItemsGUID = sf.GetAllItemsGUID()
 
     for i = 1, #tbl_allItemsGUID do
 
@@ -948,7 +948,7 @@ end
 
 -------------------------------------------------------
 
-function so.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
+function sf.ToggleItemMuteState(itemGUID_rx, extendRestoreSwitch_rx)
 
   -- if item is in target lane
   -- and if item has start point before / after target item
@@ -990,7 +990,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
+function sf.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
 
   -- mouse target tells us if the selected item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
@@ -1000,7 +1000,7 @@ function so.GetNeighbor2(flaggedGUID_rx, mouseTarget_rx)
 
   -- get array of items on fixed lane
 
-  local tbl_laneItemsGUID = so.GetItemsOnLane(flaggedGUID)
+  local tbl_laneItemsGUID = sf.GetItemsOnLane(flaggedGUID)
   if not tbl_laneItemsGUID then return end
 
   -- get index of flagged item
@@ -1047,7 +1047,7 @@ end
 
 -------------------------------------------------------
 
-function so.GetAllItemsGUID()
+function sf.GetAllItemsGUID()
 
   local itemCount = r.CountMediaItems(0)
   local tbl_projectItemsGUID = {}
@@ -1071,7 +1071,7 @@ end
 
 -------------------------------------------------------
 
-function so.Test()
+function sf.Test()
 
   r.ShowMessageBox("Functions found!", "Success!", 0)
 
@@ -1082,4 +1082,4 @@ end
 -- required --
 --------------
 
-return so
+return sf

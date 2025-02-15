@@ -3,7 +3,7 @@
 source-destination markers / gates: remove all source gates
 
 This file is part of the soapy-seahorse package.
-It requires the file "soapy-seahorse_Edit_Functions.lua"
+It requires the file "soapy-seahorse_Markers_Functions.lua"
 
 (C) 2024 the soapy zoo
 
@@ -23,33 +23,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- variables --
 ---------------
 
-local sourceLabelIn = "SRC_IN"
-local sourceLabelOut = "SRC_OUT"
-
 local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
-local so = require("soapy-seahorse_Edit_Functions")
-
----------------
--- functions --
----------------
-
-function Main()
-
-    r.Undo_BeginBlock()
-    r.PreventUIRefresh(1)
-
-    so.RemoveSourceGates(0, sourceLabelIn, sourceLabelOut)
-
-    r.PreventUIRefresh(-1)
-    r.UpdateArrange()
-    r.Undo_EndBlock("Remove All Source Gates", -1)
-end
+local sm = require("soapy-seahorse_Markers_Functions")
 
 ---------------------------
 -- execution starts here --
 ---------------------------
 
-Main()
+sm.RemoveAllSourceGates()

@@ -3,6 +3,7 @@
 source-destination markers / gates: set destination in
 
 This file is part of the soapy-seahorse package.
+It requires the file "soapy-seahorse_Markers_Functions.lua"
 
 (C) 2024 the soapy zoo
 
@@ -23,23 +24,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 ---------------
 
 local r = reaper
-local markerLabel = "DST_IN"
-local markerColor = r.ColorToNative(22, 141, 195)
 
----------------
--- functions --
----------------
-
-function main() -- thanks chmaha
-    local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(0, 996, false)
-    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel, 996, markerColor | 0x1000000)
-end
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
+local sm = require("soapy-seahorse_Markers_Functions")
 
 ---------------------------
 -- execution starts here --
 ---------------------------
 
-r.Undo_BeginBlock()
-main()
-r.Undo_EndBlock("Set Destination In", -1)
+sm.SetDstIn()
