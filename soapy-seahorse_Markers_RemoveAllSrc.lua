@@ -29,7 +29,7 @@ local sourceLabelOut = "SRC_OUT"
 local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
-package.path = modulePath .. "?.lua"
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local so = require("soapy-seahorse_Edit_Functions")
 
 ---------------

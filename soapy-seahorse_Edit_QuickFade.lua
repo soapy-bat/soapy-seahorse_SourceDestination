@@ -39,11 +39,11 @@ local cursorBias = 1                             -- 0, ..., 1 /// 0.5: center of
 local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
-package.path = modulePath .. "?.lua"
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local sf = require("soapy-seahorse_Fades_Functions")
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
-package.path = modulePath .. "?.lua"
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local se = require("soapy-seahorse_Edit_Functions")
 
 ----------

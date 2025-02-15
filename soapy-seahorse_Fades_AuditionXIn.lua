@@ -39,7 +39,7 @@ local bool_RemoveFade = false        -- audition without fade
 local r = reaper
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
-package.path = modulePath .. "?.lua"
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local so = require("soapy-seahorse_Fades_Functions")
 
 local targetItem = 1
