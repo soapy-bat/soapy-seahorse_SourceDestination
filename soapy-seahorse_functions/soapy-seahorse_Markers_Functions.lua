@@ -24,7 +24,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -- user settings --
 -------------------
 
-local bool_TargetItemUnderMouse = false        -- select item under mouse (no click to select required)
+local bool_TargetItemUnderMouse = false        -- select *item* under mouse (no click to select required)
 local bool_TargetMouseInsteadOfCursor = false  -- place src gate at mouse position instead of edit cursor position
 
 ---------------
@@ -43,16 +43,23 @@ local markerLabel_SrcIn = "SRC_IN"
 local markerLabel_SrcOut = "SRC_OUT"
 local markerLabel_DstIn = "DST_IN"
 local markerLabel_DstOut = "DST_OUT"
-local markerColor_Src = r.ColorToNative(255,0,0)
-local markerColor_Dst = r.ColorToNative(22, 141, 195)
+local markerIndex_DstIn = 996
+local markerIndex_DstOut = 997
+local markerColor_Src = r.ColorToNative(255,0,0)        -- red
+local markerColor_Dst = r.ColorToNative(22, 141, 195)   -- kind of blue
 
 ---------------
 -- functions --
 ---------------
 
-function sm.SetSrcIn()
+function sm.SetSourceGate(markerType)
 
     r.Undo_BeginBlock()
+
+    local markerLabel
+    if markerType == 1 then markerLabel = markerLabel_SrcIn
+    elseif markerType == 2 then markerLabel = markerLabel_SrcOut
+    else sm.ErrMsg() return end
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -77,8 +84,8 @@ function sm.SetSrcIn()
         -- Remove existing MarkerLabel markers
         local numMarkers = r.GetNumTakeMarkers(activeTake)
         for i = numMarkers, 0, -1 do
-            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-            if markerType == markerLabel_SrcIn then
+            local _, currentLabel, _, _, _ = r.GetTakeMarker(activeTake, i)
+            if currentLabel == markerLabel then
                 r.DeleteTakeMarker(activeTake, i)
             end
         end
@@ -97,94 +104,40 @@ function sm.SetSrcIn()
 
 
         -- Add a take marker at the cursor position
-        r.SetTakeMarker(activeTake, -1, markerLabel_SrcIn, cursorPosInTake, markerColor_Src|0x1000000)
+        r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor_Src|0x1000000)
 
     end
 
     r.UpdateArrange()
-    r.Undo_EndBlock("Create Sync In Marker", -1)
+    if markerType == 1 then r.Undo_EndBlock("Create Sync In Marker", -1)
+    elseif markerType == 2 then r.Undo_EndBlock("Create Sync Out Marker", -1)
+    else sm.ErrMsg() return end
 
 end
 
 ----------------------------------------------------------------------
 
-function sm.SetSrcOut()
+function sm.SetDstGate(markerType) -- thanks chmaha
 
     r.Undo_BeginBlock()
 
-    if bool_TargetItemUnderMouse then
-        r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
-        r.Main_OnCommand(40528, 0) -- Item: Select item under mouse cursor
-    end
-
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
-
-    local numSelectedItems = r.CountSelectedMediaItems(0)
-
-    -- Iterate through selected items
-    for i = 0, numSelectedItems - 1 do
-
-        -- Get the active media item
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-        if not mediaItem then return end
-
-        -- Get the active take
-        local activeTake = r.GetActiveTake(mediaItem)
-
-        if not activeTake then return end
-        -- Remove existing MarkerLabel markers
-        local numMarkers = r.GetNumTakeMarkers(activeTake)
-        for i = numMarkers, 0, -1 do
-            local _, markerType, _, _, _ = r.GetTakeMarker(activeTake, i)
-            if markerType == markerLabel_SrcOut then
-                r.DeleteTakeMarker(activeTake, i)
-            end
-        end
-
-        -- Get the relative cursor position within the active take, even when the playhead is moving
-        local cursorPos
-
-        if bool_TargetMouseInsteadOfCursor then
-            _, cursorPos = r.BR_ItemAtMouseCursor()
-        else
-            cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-        end
-
-        local takeStartPos = r.GetMediaItemInfo_Value(mediaItem, "D_POSITION")
-        local cursorPosInTake = cursorPos - takeStartPos + r.GetMediaItemTakeInfo_Value(activeTake, "D_STARTOFFS")
-
-        -- Add a take marker at the cursor position
-        r.SetTakeMarker(activeTake, -1, markerLabel_SrcOut, cursorPosInTake, markerColor_Src|0x1000000)
-
-    end
-
-    r.UpdateArrange()
-    r.Undo_EndBlock("Create Sync Out Marker", -1)
-
-end
-
-----------------------------------------------------------------------
-
-function sm.SetDstIn() -- thanks chmaha
-    r.Undo_BeginBlock()
+    local markerLabel, markerIndex
+    if markerType == 1 then
+        markerLabel = markerLabel_DstIn
+        markerIndex = markerIndex_DstIn
+    elseif markerType == 2 then
+        markerLabel = markerLabel_DstOut
+        markerIndex = markerIndex_DstOut
+    else sm.ErrMsg() return end
 
     local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(0, 996, false)
-    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel_DstIn, 996, markerColor_Dst | 0x1000000)
+    r.DeleteProjectMarker(0, markerIndex, false)
+    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel, markerIndex, markerColor_Dst | 0x1000000)
 
-    r.Undo_EndBlock("Set Destination In", -1)
-end
+    if markerType == 1 then r.Undo_EndBlock("Create Destination In", -1)
+    elseif markerType == 2 then r.Undo_EndBlock("Create Destination Out", -1)
+    else sm.ErrMsg() return end
 
-----------------------------------------------------------------------
-
-function sm.SetDstOut()
-    r.Undo_BeginBlock()
-
-    local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
-    r.DeleteProjectMarker(0, 997, false)
-    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel_DstOut, 997, markerColor_Dst | 0x1000000)
-
-    r.Undo_EndBlock("Set Destination Out", -1)
 end
 
 ----------------------------------------------------------------------
@@ -199,6 +152,14 @@ function sm.RemoveAllSourceGates()
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
     r.Undo_EndBlock("Remove All Source Gates", -1)
+end
+
+----------------------------------------------------------------------
+
+function sm.ErrMsg()
+
+    r.ShowMessageBox("Gate Creation unsuccessful", "Something went wrong.", 0)
+
 end
 
 --------------

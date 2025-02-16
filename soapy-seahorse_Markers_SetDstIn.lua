@@ -29,8 +29,10 @@ local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local sm = require("soapy-seahorse_Markers_Functions")
 
+local markerType = 1              -- 1 for destination in, 2 for destination out
+
 ---------------------------
 -- execution starts here --
 ---------------------------
 
-sm.SetDstIn()
+sm.SetDstGate(markerType)
