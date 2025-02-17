@@ -34,4 +34,4 @@ local se = require("soapy-seahorse_Edit_Functions")
 -- execution starts here --
 ---------------------------
 
-se.QuickFade_Main()
+se.QuickFade()

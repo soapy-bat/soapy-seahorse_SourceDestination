@@ -40,5 +40,5 @@ if bool_rescueMe then
   se.RescueExtender()
   bool_rescueMe = false
 else
-  se.ExtendItems_Main()
+  se.ItemExtender()
 end

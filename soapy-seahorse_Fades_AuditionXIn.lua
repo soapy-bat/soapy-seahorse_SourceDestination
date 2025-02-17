@@ -5,9 +5,7 @@ source-destination fades: audition left side, mute right side
 This script is part of the soapy-seahorse package.
 It requires the file "soapy-seahorse_Fades_Functions.lua"
 
-(C) 2024 the soapy zoo
-copyleft: chmaha
-thanks: fricia, X-Raym, GPT3.5
+(C) 2025 the soapy zoo
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,17 +18,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
-
--------------------
--- user settings --
--------------------
-
-local preRoll = 2                    -- audition pre-roll, in seconds
-local postRoll = 0                   -- audition post-roll, in seconds
-local cursorBias = 2                 -- 0, ..., 2 /// 1: center of fade
-local bool_TransportAutoStop = true  -- stop transport automatically after auditioning
-local bool_KeepCursorPosition = true -- false: script will leave edit cursor at the center of the fade
-local bool_RemoveFade = false        -- audition without fade
 
 ---------------
 -- variables --
@@ -48,4 +35,4 @@ local targetItem = 1
 -- execution starts here --
 ---------------------------
 
-sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, _, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+sf.AuditionFade_Crossfade(targetItem)

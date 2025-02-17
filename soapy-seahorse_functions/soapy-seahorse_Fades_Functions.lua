@@ -5,7 +5,7 @@ source-destination fades: functions
 This file is part of the soapy-seahorse package.
 It is required by the various audition scripts.
 
-(C) 2024 the soapy zoo
+(C) 2025 the soapy zoo
 thanks: chmaha, fricia, X-Raym, GPT3.5
 
 This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,17 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
+-------------------
+-- user settings --
+-------------------
+
+-- true = yes, false = no
+
+local bool_ShowHoverWarnings = true           -- show error message if mouse is hovering over empty space
+local bool_TransportAutoStop = true           -- stop transport automatically after auditioning
+local bool_KeepCursorPosition = true          -- false: script will leave edit cursor at the center of the fade
+local bool_RemoveFade = false                 -- audition without fade
+
 ---------------
 -- variables --
 ---------------
@@ -32,7 +43,9 @@ local sf = {}
 --          audition crossfade          --
 ------------------------------------------
 
-function sf.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+function sf.AuditionCrossfade()
+
+  local preRoll, postRoll, cursorBias = 2, 2, 1
 
   local auditioningItems1, auditioningItems2 = {}, {}
   local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
@@ -74,7 +87,7 @@ function sf.AuditionCrossfade(preRoll, postRoll, timeAmount, cursorBias, bool_Tr
       sf.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
       AuditionCrossfade_CheckPlayState()
     else
-      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+      if bool_ShowHoverWarnings then sf.ErrMsgHover() end
     end
 
     if bool_KeepCursorPosition then
@@ -124,7 +137,9 @@ end
 -- audition to fade in or from fade out --
 ------------------------------------------
 
-function sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade)
+function sf.AuditionFade_Crossfade(targetItem)
+
+  local preRoll, postRoll, cursorBias = 2, 2, 1
 
   local tbl_mutedItems = {}
   local auditioningItems = {}
@@ -140,6 +155,17 @@ function sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cu
     local curPos = r.GetCursorPosition()
 
     r.Main_OnCommand(42478, 0) -- play only lane under mouse
+
+    -- this will be taken care of later (TM)
+    if targetItem == 1 then
+      preRoll = 2
+      postRoll = 0
+      cursorBias = 2
+    elseif targetItem == 2 then
+      preRoll = 0
+      postRoll = 2
+      cursorBias = 0
+    end
 
     if targetItem == 1 then
       bool_success, myItemGUID, _ = sf.GetItemsNearMouse(cursorBias)
@@ -160,7 +186,7 @@ function sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cu
 
       end
 
-      local _, tbl_itemsToMute = sf.GetNeighbors(myItemGUID, targetItem, 1)
+      local _, tbl_itemsToMute = sf.GetItemNeighbors(myItemGUID, targetItem, 1)
 
       -- in case a new instance of an audition script has started before other scripts were able to complete
       -- sf.ToggleItemMute() will get the grouped items anyway, so we only pass along one item:
@@ -174,7 +200,7 @@ function sf.AuditionFade_Crossfade(targetItem, preRoll, postRoll, timeAmount, cu
       AuditionFade_CheckPlayState()
 
     else
-      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+      if bool_ShowHoverWarnings then sf.ErrMsgHover() end
     end
 
     if bool_KeepCursorPosition then
@@ -226,9 +252,11 @@ end
 --    audition orig. src. in or out     --
 ------------------------------------------
 
-function sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cursorBias, bool_TransportAutoStop, bool_KeepCursorPosition)
+function sf.AuditionFade_Original(targetItem)
 
-  local item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp
+  local preRoll, postRoll, cursorBias, extensionAmountSeconds = 2, 2, 1, 2
+
+  local item1GUID_temp, item2GUID_temp, extensionAmountSeconds_temp, targetItem_temp
   local tbl_mutedItems = {}
   local rippleStateAll, rippleStatePer
 
@@ -236,6 +264,18 @@ function sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cur
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
+
+    if targetItem == 1 then
+      cursorBias = 0.5
+    elseif targetItem == 2 then
+      cursorBias = 1.5
+    end
+
+    if preRoll > postRoll then
+      extensionAmountSeconds = preRoll
+    else
+      extensionAmountSeconds = postRoll
+    end
 
     local curPos = r.GetCursorPosition()
 
@@ -255,14 +295,14 @@ function sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cur
         sf.ToggleItemMute({item2GUID}, {}, 0)
       end
 
-      item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, tbl_mutedItems = sf.ItemExtender(item1GUID, item2GUID, timeAmount, targetItem, 1)
+      item1GUID_temp, item2GUID_temp, extensionAmountSeconds_temp, targetItem_temp, tbl_mutedItems = sf.ItemExtender(item1GUID, item2GUID, extensionAmountSeconds, targetItem, 1)
 
       sf.AuditionFade(preRoll, postRoll, bool_TransportAutoStop)
 
       AuditionOriginal_CheckPlayState()
 
     else
-      r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+      if bool_ShowHoverWarnings then sf.ErrMsgHover() end
     end
 
     if bool_KeepCursorPosition then
@@ -283,7 +323,7 @@ function sf.AuditionFade_Original(targetItem, preRoll, postRoll, timeAmount, cur
 
     if playState == 0 then -- Transport is stopped
 
-      sf.ItemExtender(item1GUID_temp, item2GUID_temp, timeAmount_temp, targetItem_temp, -1, tbl_mutedItems)
+      sf.ItemExtender(item1GUID_temp, item2GUID_temp, extensionAmountSeconds_temp, targetItem_temp, -1, tbl_mutedItems)
 
       r.DeleteProjectMarker(0, 998, false)
 
@@ -348,9 +388,9 @@ function sf.GetItemsNearMouse(cursorBias_rx, range_rx)
 
   tbl_itemGUID[pri] = r.BR_GetMediaItemGUID(mediaItem)
   if range == 1 then
-    tbl_itemGUID[sec], _ = sf.GetNeighbors(tbl_itemGUID[pri], pri, range)
+    tbl_itemGUID[sec], _ = sf.GetItemNeighbors(tbl_itemGUID[pri], pri, range)
   else
-    _, tbl_itemGUID = sf.GetNeighbors(tbl_itemGUID[pri], pri, range)
+    _, tbl_itemGUID = sf.GetItemNeighbors(tbl_itemGUID[pri], pri, range)
   end
 
   if not tbl_itemGUID then
@@ -371,7 +411,7 @@ end
 
 -------------------------------------------------------
 
-function sf.GetNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
+function sf.GetItemNeighbors(flaggedGUID_rx, auditionTarget_rx, range_rx)
 
   -- audition target tells us if the flagged item is the first or the second one (in or out of the targeted fade)
   local flaggedGUID = flaggedGUID_rx
@@ -545,6 +585,11 @@ end
 -- functions: parameter manipulation (set / toggle) --
 ------------------------------------------------------
 
+---sets the edit cursor in the center between two item edges
+---@param item1GUID_rx any
+---@param item2GUID_rx any
+---@param cursorBias_rx any
+---@return boolean bool_success
 function sf.SetEditCurPosCenterEdges(item1GUID_rx, item2GUID_rx, cursorBias_rx)
 
   local bool_success = false
@@ -593,13 +638,13 @@ end
 
 -------------------------------------------------------
 
-function sf.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend_rx, extendRestoreSwitch_rx, tbl_mutedItems_rx)
+function sf.ItemExtender(item1GUID_rx, item2GUID_rx, extensionAmountSeconds_rx, itemToExtend_rx, extendRestoreSwitch_rx, tbl_mutedItems_rx)
 
   local tbl_itemGUID = {}
   tbl_itemGUID[1] = item1GUID_rx
   tbl_itemGUID[2] = item2GUID_rx
 
-  local timeAmount = timeAmount_rx
+  local extensionAmountSeconds = extensionAmountSeconds_rx
   local itemToExtend = itemToExtend_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx    -- 1 = extend, -1 = restore // to make it easier when calculating new item edges (see sf.LenghtenItem)
   local tbl_mutedItems = tbl_mutedItems_rx
@@ -628,7 +673,7 @@ function sf.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
     muteState = 0
     itemsToMute = tbl_mutedItems
   elseif muteState == 1 then
-    _, itemsToMute = sf.GetNeighbors(tbl_itemGUID[pri], pri, 2)
+    _, itemsToMute = sf.GetItemNeighbors(tbl_itemGUID[pri], pri, 2)
   end
 
   tbl_mutedItems = sf.ToggleItemMute(itemsToMute, {}, muteState)
@@ -638,23 +683,23 @@ function sf.ItemExtender(item1GUID_rx, item2GUID_rx, timeAmount_rx, itemToExtend
   mediaItem[pri] = r.BR_GetMediaItemByGUID(0, tbl_itemGUID[pri])
 
   if mediaItem[pri] then
-    sf.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, timeAmount)
+    sf.LenghtenItem(mediaItem[pri], pri, extendRestoreSwitch, extensionAmountSeconds)
   end
   
-  return tbl_itemGUID[1], tbl_itemGUID[2], timeAmount, itemToExtend, tbl_mutedItems
+  return tbl_itemGUID[1], tbl_itemGUID[2], extensionAmountSeconds, itemToExtend, tbl_mutedItems
 
 end
 
 -------------------------------------------------------
 
-function sf.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmount_rx)
+function sf.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, extensionAmountSeconds_rx)
 
   -- function assumes all items in group to be at the same length and position
 
   local mediaItem = mediaItem_rx
   local pri = pri_rx
   local extendRestoreSwitch = extendRestoreSwitch_rx
-  local timeAmount = timeAmount_rx
+  local extensionAmountSeconds = extensionAmountSeconds_rx
 
   local bool_success = false
 
@@ -669,7 +714,7 @@ function sf.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmoun
   -- the magic happens here
   if pri == 1 then
 
-    local newEnd = itemEnd + (timeAmount * extendRestoreSwitch)
+    local newEnd = itemEnd + (extensionAmountSeconds * extendRestoreSwitch)
   
     for t = 0, r.CountSelectedMediaItems(0) - 1 do
       local currentItem = r.GetSelectedMediaItem(0, t)
@@ -681,7 +726,7 @@ function sf.LenghtenItem(mediaItem_rx, pri_rx, extendRestoreSwitch_rx, timeAmoun
   -- ...and here
   elseif pri == 2 then
 
-    local newStart = itemStart - (timeAmount * extendRestoreSwitch)
+    local newStart = itemStart - (extensionAmountSeconds * extendRestoreSwitch)
   
     for t = 0, r.CountSelectedMediaItems(0) - 1 do
       local currentItem = r.GetSelectedMediaItem(0, t)
@@ -1069,6 +1114,13 @@ function sf.GetAllItemsGUID()
 
 end
 
+-------------------------------------------------------
+
+function sf.ErrMsgHover()
+
+  r.ShowMessageBox("Please hover the mouse over an item in order to audition fade.", "Audition unsuccessful", 0)
+
+end
 -------------------------------------------------------
 
 function sf.Test()

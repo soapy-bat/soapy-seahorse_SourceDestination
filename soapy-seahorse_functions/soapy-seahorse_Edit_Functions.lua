@@ -26,6 +26,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 -- true = yes, false = no
 
+local bool_ShowHoverWarnings = true                 -- show error message if mouse is hovering over empty space
+
 -- three and four point edits
 
 local xFadeLen = 0.05                               -- default: 50 milliseconds (0.05)
@@ -70,9 +72,9 @@ local dstLabelOut = "DST_OUT"
 local dstIdxIn = 996
 local dstIdxOut = 997
 
----------------
--- functions --
----------------
+----------------------
+-- three point edit --
+----------------------
 
 function se.ThreePointEdit(bool_Ripple)
 
@@ -86,7 +88,7 @@ function se.ThreePointEdit(bool_Ripple)
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = se.PrepareEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = se.GetEditStates()
 
     if bool_Ripple then
         if rippleStatePer == 0 then
@@ -98,8 +100,8 @@ function se.ThreePointEdit(bool_Ripple)
     ---##### get coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
-    local timeSelStart, timeSelEnd = se.GetTimeSelection()
-    local loopStart, loopEnd = se.GetLoopPoints()
+    local timeSelStart, timeSelEnd = se.GetTimeSelectionStartEnd()
+    local loopStart, loopEnd = se.GetLoopStartEnd()
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -129,7 +131,7 @@ function se.ThreePointEdit(bool_Ripple)
 
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
     ---##### paste source to destination #####---
@@ -172,7 +174,7 @@ function se.ThreePointEdit(bool_Ripple)
         se.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
@@ -198,7 +200,9 @@ function se.ThreePointEdit(bool_Ripple)
     end
 end
 
--------------------------------------------
+---------------------
+-- four point edit --
+---------------------
 
 function se.FourPointEdit()
 
@@ -212,7 +216,7 @@ function se.FourPointEdit()
     local saveXFadeState = r.NamedCommandLookup("_SWS_SAVEXFD")
     r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
 
-    local rippleStateAll, rippleStatePer, trimContentState = se.PrepareEditStates()
+    local rippleStateAll, rippleStatePer, trimContentState = se.GetEditStates()
 
     r.Main_OnCommand(40309, 1) -- Set ripple editing off
     r.Main_OnCommand(41120, 1) -- Options: Enable trim content behind media items when editing
@@ -220,8 +224,8 @@ function se.FourPointEdit()
     ---##### get all coordinates #####---
 
     local cursorPos_origin = r.GetCursorPosition()
-    local timeSelStart, timeSelEnd = se.GetTimeSelection()
-    local loopStart, loopEnd = se.GetLoopPoints()
+    local timeSelStart, timeSelEnd = se.GetTimeSelectionStartEnd()
+    local loopStart, loopEnd = se.GetLoopStartEnd()
 
     if bool_TargetItemUnderMouse then
         r.Main_OnCommand(40289, 0) -- Item: Unselect (clear selection of) all items
@@ -268,7 +272,7 @@ function se.FourPointEdit()
 
     r.Main_OnCommand(40060, 0) -- copy selected area of items (source material)
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40020, 0) -- Time Selection: Remove
 
     ---##### paste source to destination #####---
@@ -306,7 +310,7 @@ function se.FourPointEdit()
 
     r.DeleteProjectMarker(0, dstIdxOut, false)
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position
 
     if bool_KeepLaneSolo then
@@ -334,7 +338,7 @@ end
 -- item extender --
 -------------------
 
-function se.ExtendItems_Main()
+function se.ItemExtender()
 
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
@@ -345,7 +349,7 @@ function se.ExtendItems_Main()
   r.Main_OnCommand(saveXFadeState, 1) -- SWS: Save auto crossfade state
   r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
 
-  local item1GUID, item2GUID = se.ItemExtender(_, 1)
+  local item1GUID, item2GUID = se.ExtendItems(_, 1)
   if not item1GUID or not item2GUID then return end
 
   if bool_SelectRightItemAtCleanup then
@@ -353,7 +357,7 @@ function se.ExtendItems_Main()
     local mediaItem2 = r.BR_GetMediaItemByGUID(0, item2GUID)
     if not mediaItem2 then return end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.SetMediaItemSelected(mediaItem2, true)
 
   end
@@ -373,12 +377,15 @@ end
 
 -------------------------------------------
 
-function se.ItemExtender(scriptCommand_rx, newToggleState_rx)
+function se.ExtendItems(scriptCommand_rx, newToggleState_rx)
 
   -- ## get items ## --
   local _, _, _, _, itemGUID = sf.GetItemsNearMouse(cursorBias_Extender)
 
-  if not itemGUID then se.ErrMsgHover() return end
+  if not itemGUID then
+    if bool_ShowHoverWarnings then se.ErrMsgHover() end
+    return
+  end
 
   -- ## extend items ## --
   local mediaItem = {}
@@ -386,7 +393,10 @@ function se.ItemExtender(scriptCommand_rx, newToggleState_rx)
     mediaItem[i] = r.BR_GetMediaItemByGUID(0, itemGUID[i])
   end
   for i = 1, #mediaItem do
-    if not mediaItem[i] then se.ErrMsgHover() return end
+    if not mediaItem[i] then
+      if bool_ShowHoverWarnings then se.ErrMsgHover() end
+      return
+    end
   end
 
   if bool_AvoidCollision then
@@ -436,7 +446,7 @@ end
 -- quick fade --
 ----------------
 
-function se.QuickFade_Main()
+function se.QuickFade()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -446,8 +456,8 @@ function se.QuickFade_Main()
     r.Main_OnCommand(41119, 1) -- Options: Disable Auto Crossfades
 
     local curPosOrigin = r.GetCursorPosition()
-    local timeSelStart, timeSelEnd = se.GetTimeSelection()
-    local loopStart, loopEnd = se.GetLoopPoints()
+    local timeSelStart, timeSelEnd = se.GetTimeSelectionStartEnd()
+    local loopStart, loopEnd = se.GetLoopStartEnd()
 
     -- ## get / set cursor position ## --
 
@@ -490,10 +500,10 @@ function se.QuickFade_Main()
 
     -- ## manipulate items in order to be able to fade ## --
 
-    se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
+    se.QuickFade_SetItemsEdges(tbl_mediaItem, curPos)
 
     -- ## select items ## --
-    se.SetOnlyItemsSelected(tbl_mediaItem)
+    se.SetGroupedItemsSelectedOnly(tbl_mediaItem)
 
     -- ## perform crossfade ## --
     se.SetCrossfade2(curPos, xFadeLen)
@@ -514,7 +524,7 @@ end
 
 -------------------------------------------
 
-function se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
+function se.QuickFade_SetItemsEdges(tbl_mediaItem, curPos)
 
     for i = 1, #tbl_mediaItem do
         if not tbl_mediaItem[i] then return end
@@ -527,9 +537,7 @@ function se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
 
     if item1End < curPos then
 
-        r.Main_OnCommand(40289, 0) -- Deselect all items
-        r.SetMediaItemSelected(tbl_mediaItem[1], true)
-        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+        se.SetSingleItemGroupSelectedOnly(tbl_mediaItem[1])
 
         for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
@@ -547,9 +555,7 @@ function se.QuickFade_ManipulateItems(tbl_mediaItem, curPos)
 
     if item2Start > curPos then
 
-        r.Main_OnCommand(40289, 0) -- Deselect all items
-        r.SetMediaItemSelected(tbl_mediaItem[2], true)
-        r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+        se.SetSingleItemGroupSelectedOnly(tbl_mediaItem[2])
 
         for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
@@ -582,9 +588,14 @@ function se.QuickFade_Cleanup(tbl_mediaItem, curPos, curPosOrigin, timeSelStart,
         r.SetEditCurPos(curPos, false, false)
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     if bool_SelectRightItemAtCleanup then
-        if not tbl_mediaItem then se.ErrMsgHover() return end
+
+        if not tbl_mediaItem then
+            if bool_ShowHoverWarnings then se.ErrMsgHover() end
+            return
+        end
+
         r.SetMediaItemSelected(tbl_mediaItem[2], true)
     end
 
@@ -594,7 +605,7 @@ end
 -- utils --
 -----------
 
-function se.GetTimeSelection()
+function se.GetTimeSelectionStartEnd()
 
     local timeSelStart, timeSelEnd = r.GetSet_LoopTimeRange2(0, false, false, 0, 0, true)
 
@@ -617,7 +628,7 @@ end
 ---Get start and end position of loop points in session using r.GetSet_LoopTimeRange2()
 ---@return number loopStart
 ---@return number loopEnd
-function se.GetLoopPoints()
+function se.GetLoopStartEnd()
 
     local loopStart, loopEnd = r.GetSet_LoopTimeRange2(0, false, true, 0, 0, true)
 
@@ -689,7 +700,7 @@ function se.GetTracksOfItemGroup(selItem)
 
     local tbl_groupedTracks = {}
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40297, 0) -- Track: Unselect (clear selection of) all tracks
 
     r.SetMediaItemSelected(selItem, true)
@@ -705,15 +716,18 @@ function se.GetTracksOfItemGroup(selItem)
         table.insert(tbl_groupedTracks, selTrack)
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40297, 0) -- Track: Unselect (clear selection of) all tracks
 
     return tbl_groupedTracks
 end
 
 -------------------------------------------------------------------
-
-function se.GetGroupedTracks(selTrack)
+---check if a track has set flags for edit lead and follow
+---@param selTrack MediaTrack
+---@return number isEditLead
+---@return number isEditFollow
+function se.GetTrackGroupFlags(selTrack)
 
     -- only checks first 32 groups atm
 
@@ -740,6 +754,9 @@ end
 
 ------------------------------------------------
 
+---returns the larger fade length between Reaper's FadeLen and FadeLen_auto
+---@return any fadeInLen
+---@return any fadeOutLen
 function se.GetItemLargestFade(mediaItem)
 
     local fadeInLen = r.GetMediaItemInfo_Value(mediaItem, "D_FADEINLEN")
@@ -761,18 +778,28 @@ end
 
 -------------------------------------------
 
-function se.SetOnlyItemsSelected(tbl_mediaItem)
+function se.SetGroupedItemsSelectedOnly(tbl_mediaItem)
 
     for i = 1, #tbl_mediaItem do
         if not tbl_mediaItem[i] then return end
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
 
     for i = 1, #tbl_mediaItem do
         r.SetMediaItemSelected(tbl_mediaItem[i], true)
         r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
     end
+end
+
+-------------------------------------------
+
+function se.SetSingleItemGroupSelectedOnly(mediaItem)
+
+    se.DeselectAllItems()
+    r.SetMediaItemSelected(mediaItem, true)
+    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+
 end
 
 -------------------------------------------------------------------
@@ -818,10 +845,7 @@ end
 
 -------------------------------------------------------------------
 
-function se.GetTakeMarkerPositionByName(sourceItem_rx, markerName_rx)
-
-    local sourceItem = sourceItem_rx
-    local markerName = markerName_rx
+function se.GetTakeMarkerPositionByName(sourceItem, markerName)
 
     r.SetMediaItemSelected(sourceItem, true)
 
@@ -1008,9 +1032,7 @@ end
 
 function se.ResetFadeShape(tbl_mediaItem, xFadeShape)
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-    r.SetMediaItemSelected(tbl_mediaItem[1], true)
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+    se.SetSingleItemGroupSelectedOnly(tbl_mediaItem[1])
 
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
@@ -1021,9 +1043,7 @@ function se.ResetFadeShape(tbl_mediaItem, xFadeShape)
         end
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
-    r.SetMediaItemSelected(tbl_mediaItem[2], true)
-    r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
+    se.SetSingleItemGroupSelectedOnly(tbl_mediaItem[2])
 
     for i = 0, r.CountSelectedMediaItems(0) - 1 do
 
@@ -1094,13 +1114,13 @@ function se.RemoveSourceGates(safeLane, sourceLabelIn, sourceLabelOut)
         end
     end
 
-  r.Main_OnCommand(40289, 0) -- Deselect all items
+  se.DeselectAllItems()
 
 end
 
 ------------------------------------------
 
-function se.PrepareEditStates()
+function se.GetEditStates()
 
     local rippleStateAll = r.GetToggleCommandState(41991) -- Toggle ripple editing all tracks
     local rippleStatePer = r.GetToggleCommandState(41990) -- Toggle ripple editing per-track
@@ -1136,7 +1156,7 @@ function se.ToggleLockItemsInSourceLanes(lockState_rx)
 
     local safeLanes = 1 -- Lanes that will not be locked, indexed from the topmost lane
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
 
     r.SelectAllMediaItems(0, true)
 
@@ -1155,7 +1175,7 @@ function se.ToggleLockItemsInSourceLanes(lockState_rx)
 
     end
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
 
 end
 
@@ -1228,7 +1248,7 @@ function se.ClearDestinationArea(selStart, selEnd)
 
     se.SetTimeSelection(selStart, selEnd)
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40718, 0) -- Item: Select all items on selected tracks in current time selection
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
@@ -1274,7 +1294,7 @@ function se.ShiftDestinationItems(difference_rx, dstOutPos_rx)
     local difference = difference_rx
     local dstOutPos = dstOutPos_rx
 
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
     r.Main_OnCommand(40421, 0) -- Item: Select all items in track
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
@@ -1311,7 +1331,7 @@ function se.ShiftDestinationItems(difference_rx, dstOutPos_rx)
     end
 
     se.HealAllSplits()
-    r.Main_OnCommand(40289, 0) -- Deselect all items
+    se.DeselectAllItems()
 
 end
 
@@ -1321,6 +1341,15 @@ function se.HealAllSplits()
 
     r.Main_OnCommand(40182, 0) -- Select All
     r.Main_OnCommand(40548, 0) -- Heal splits in items
+    se.DeselectAllItems()
+
+end
+
+-------------------------------------------------------------------
+
+--- using Reaper Command ID 40289
+function se.DeselectAllItems()
+
     r.Main_OnCommand(40289, 0) -- Deselect all items
 
 end
@@ -1329,9 +1358,7 @@ end
 -- deprecated functions --
 --------------------------
 
-function se.GetItemsOnLane(flaggedGUID_rx)
-
-    local flaggedGUID = flaggedGUID_rx
+function se.GetItemsOnLane(flaggedGUID)
 
     -- get media track and fixed lane of flagged item
     local flaggedItem = r.BR_GetMediaItemByGUID(0, flaggedGUID)
