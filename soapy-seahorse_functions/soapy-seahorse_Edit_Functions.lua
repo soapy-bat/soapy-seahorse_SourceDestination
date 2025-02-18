@@ -973,32 +973,7 @@ function se.SetCrossfade(xFadeLen, curPos)
     r.Main_OnCommand(40034, 0) -- Item grouping: Select all items in groups
 
     -- make sure only items in the topmost lane are affected
-
-    local selectedItemsGUID = {}
-
-    for i = 0, r.CountSelectedMediaItems(0) - 1 do
-
-        local mediaItem = r.GetSelectedMediaItem(0, i)
-
-        if not mediaItem then return end
-
-        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
-
-        if itemLane >= 1 then
-            table.insert(selectedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
-        end
-
-    end
-
-    for i = 0, #selectedItemsGUID do
-
-        local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
-
-        if mediaItem then
-            r.SetMediaItemSelected(mediaItem, false)
-        end
-
-    end
+    se.DeselectItemsNotInTopLane()
 
     r.Main_OnCommand(40916, 0) -- Item: Crossfade items within time selection
     r.Main_OnCommand(40635, 0) -- Time selection: Remove time selection
@@ -1236,10 +1211,12 @@ function se.ClearDestinationArea(selStart, selEnd)
 
     r.SetEditCurPos(selStart, false, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    se.DeselectItemsNotInTopLane()
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
-
+    
     r.SetEditCurPos(selEnd, false, false)
     r.Main_OnCommand(r.NamedCommandLookup("_XENAKIOS_SELITEMSUNDEDCURSELTX"), 0)
+    se.DeselectItemsNotInTopLane()
     r.Main_OnCommand(40757, 0) -- Item: Split items at edit cursor (no change selection)
 
     se.SetTimeSelection(selStart, selEnd)
@@ -1277,7 +1254,7 @@ function se.ClearDestinationArea(selStart, selEnd)
     end
 
     r.Main_OnCommand(40020, 0) -- Time selection: Remove (unselect) time selection and loop points
-    
+
 end
 
 -------------------------------------------------------------------
@@ -1341,12 +1318,56 @@ function se.HealAllSplits()
 
 end
 
+-------------------------------------------
+
+function se.DeselectItemsNotInTopLane()
+
+    local selectedItemsGUID = {}
+
+    -- get all selected items
+
+    for i = 0, r.CountSelectedMediaItems(0) - 1 do
+
+        local mediaItem = r.GetSelectedMediaItem(0, i)
+
+        if not mediaItem then return end
+
+        local itemLane = r.GetMediaItemInfo_Value(mediaItem, "I_FIXEDLANE")
+
+        if itemLane >= 1 then
+            table.insert(selectedItemsGUID, r.BR_GetMediaItemGUID(mediaItem))
+        end
+
+    end
+
+    -- perform selection / de-selection based on lane number
+
+    for i = 0, #selectedItemsGUID do
+
+        local mediaItem = r.BR_GetMediaItemByGUID(0, selectedItemsGUID[i])
+
+        if mediaItem then
+            r.SetMediaItemSelected(mediaItem, false)
+        end
+
+    end
+
+end
+
 -------------------------------------------------------------------
 
 --- using Reaper Command ID 40289
 function se.DeselectAllItems()
 
     r.Main_OnCommand(40289, 0) -- Deselect all items
+
+end
+
+-------------------------------------------------------------------
+
+function se.ErrMsgStep()
+
+    r.ShowMessageBox("step", "Debug Message", 0)
 
 end
 
