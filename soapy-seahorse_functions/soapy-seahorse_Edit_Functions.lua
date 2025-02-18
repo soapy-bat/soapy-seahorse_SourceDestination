@@ -20,57 +20,53 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
--------------------
--- user settings --
--------------------
-
--- true = yes, false = no
-
-local bool_ShowHoverWarnings = true                 -- show error message if mouse is hovering over empty space
-
--- three and four point edits
-
-local xFadeLen = 0.05                               -- default: 50 milliseconds (0.05)
-local bool_AutoCrossfade = true                     -- fade newly edited items
-local bool_MoveDstGateAfterEdit = true              -- move destination gate to end of last pasted item (recommended)
-local bool_RemoveAllSourceGates = true              -- remove all source gates after the edit
-local bool_TargetItemUnderMouse = false             -- select item under mouse (no click to select required). for quick fade:
-local bool_KeepLaneSolo = true                      -- if false, lane solo jumps to comp lane after the edit
-                                                    -- if multiple lanes were soloed, only last soloed lane will be selected
-
--- item extender and quick fade
-
-local bool_PreserveEditCursorPosition = true        -- if false, cursor will jump to the center between items
-local bool_SelectRightItemAtCleanup = true          -- keeps right item selected after script finished manipulating the items
-local bool_AvoidCollision = true                    -- experimental: avoids overlap of more than 2 items by adjusting the amout of extension automatically (if the items to be extended are very short)
-local bool_PreserveExistingCrossfade = true         -- experimental, sets a fade of the same length if there already is a crossfade
-local bool_TargetMouseInsteadOfCursor = true        -- true: sets fade at mouse cursor. false: sets fade at edit cursor
-
-local extensionAmount = 0.5                         -- time that the items get extended by, in seconds
-local collisionPadding = 0.001                      -- leaves a tiny gap if collision detection is on
-local cursorBias_Extender = 0.5                     -- 0, ..., 1 /// 0.5: center of fade
-local cursorBias_QuickFade = 1                      -- 0, ..., 1 /// 0.5: center of fade
-
-local xFadeShape = 1                                -- default: equal power
-
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
+local se = {}
 
 local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local sf = require("soapy-seahorse_Fades_Functions")
 
-local se = {}
+modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
+local st = require("soapy-seahorse_Settings")
 
-local srcLabelIn = "SRC_IN"
-local srcLabelOut = "SRC_OUT"
-local dstLabelIn = "DST_IN"
-local dstLabelOut = "DST_OUT"
-local dstIdxIn = 996
-local dstIdxOut = 997
+local markerLabel_SrcIn = st.markerLabel_SrcIn
+local markerLabel_SrcOut = st.markerLabel_SrcOut
+local markerLabel_DstIn = st.markerLabel_DstIn
+local markerLabel_DstOut = st.markerLabel_DstOut
+local markerIndex_DstIn = st.markerIndex_DstIn
+local markerIndex_Dstout = st.markerIndex_DstOut
+
+local bool_ShowHoverWarnings = st.bool_ShowHoverWarnings
+
+-- three and four point edits
+
+local xFadeLen = st.xFadeLen
+local bool_AutoCrossfade = st.bool_AutoCrossfade
+local bool_MoveDstGateAfterEdit = st.bool_MoveDstGateAfterEdit
+local bool_RemoveAllSourceGates = st.bool_RemoveAllSourceGates
+local bool_TargetItemUnderMouse = st.bool_EditTargetsItemUnderMouse
+local bool_KeepLaneSolo = st.bool_KeepLaneSolo
+
+-- item extender and quick fade
+
+local bool_PreserveEditCursorPosition = st.bool_PreserveEditCursorPosition
+local bool_SelectRightItemAtCleanup = st.bool_SelectRightItemAtCleanup
+local bool_AvoidCollision = st.bool_AvoidCollision
+local bool_PreserveExistingCrossfade = st.bool_PreserveExistingCrossfade
+local bool_TargetMouseInsteadOfCursor = st.bool_EditTargetsMouseInsteadOfCursor
+
+local extensionAmount = st.extensionAmount
+local collisionPadding = st.collisionPadding
+local cursorBias_Extender = st.cursorBias_Extender
+local cursorBias_QuickFade = st.cursorBias_QuickFade
+
+local xFadeShape = st.xFadeShape
 
 ----------------------
 -- three point edit --
@@ -111,10 +107,10 @@ function se.ThreePointEdit(bool_Ripple)
     local sourceItem = r.GetSelectedMediaItem(0,0)
     if not sourceItem then return end
 
-    local sourceGateIn = se.GetSourceGate(sourceItem, srcLabelIn)
+    local sourceGateIn = se.GetSourceGate(sourceItem, markerLabel_SrcIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = se.GetSourceGate(sourceItem, srcLabelOut)
+    local sourceGateOut = se.GetSourceGate(sourceItem, markerLabel_SrcOut)
     if not sourceGateOut then return end
 
     local targetTrack = r.GetMediaItem_Track(r.GetSelectedMediaItem(0, 0))
@@ -141,7 +137,7 @@ function se.ThreePointEdit(bool_Ripple)
     end
 
     -- paste source material
-    r.GoToMarker(0, dstIdxIn, false)
+    r.GoToMarker(0, markerIndex_DstIn, false)
     r.Main_OnCommand(42790, 0) -- play only first lane / solo first lane (comp lane)
     r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
@@ -155,11 +151,11 @@ function se.ThreePointEdit(bool_Ripple)
 
     if bool_AutoCrossfade then
         -- go to start of pasted item, set fade
-        r.GoToMarker(0, dstIdxIn, false)
+        r.GoToMarker(0, markerIndex_DstIn, false)
         se.SetCrossfade(xFadeLen)
     end
 
-    se.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
+    se.RemoveSourceGates(-1, markerLabel_SrcIn, markerLabel_SrcOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -167,11 +163,11 @@ function se.ThreePointEdit(bool_Ripple)
 
     if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        se.SetDstGateIn(dstLabelIn, dstIdxIn)  -- move destination gate in to end of pasted material (assembly line style)
+        se.SetDstGateIn(markerLabel_DstIn, markerIndex_DstIn)  -- move destination gate in to end of pasted material (assembly line style)
     end
 
     if bool_RemoveAllSourceGates then
-        se.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
+        se.RemoveSourceGates(0, markerLabel_SrcIn, markerLabel_SrcOut)
     end
 
     se.DeselectAllItems()
@@ -237,16 +233,16 @@ function se.FourPointEdit()
     local sourceItem = r.GetSelectedMediaItem(0, 0)
     if not sourceItem then return end
 
-    local sourceGateIn = se.GetSourceGate(sourceItem, srcLabelIn)
+    local sourceGateIn = se.GetSourceGate(sourceItem, markerLabel_SrcIn)
     if not sourceGateIn then return end
 
-    local sourceGateOut = se.GetSourceGate(sourceItem, srcLabelOut)
+    local sourceGateOut = se.GetSourceGate(sourceItem, markerLabel_SrcOut)
     if not sourceGateOut then return end
 
-    local dstInPos = se.GetDstGate(dstIdxIn)
+    local dstInPos = se.GetDstGate(markerIndex_DstIn)
     if not dstInPos then return end
 
-    local dstOutPos = se.GetDstGate(dstIdxOut)
+    local dstOutPos = se.GetDstGate(markerIndex_Dstout)
     if not dstOutPos then return end
 
     local targetTrack = r.GetMediaItem_Track(sourceItem)
@@ -277,7 +273,7 @@ function se.FourPointEdit()
 
     ---##### paste source to destination #####---
 
-    r.GoToMarker(0, dstIdxIn, false)
+    r.GoToMarker(0, markerIndex_DstIn, false)
     r.Main_OnCommand(42790, 0) -- play only first lane
     r.Main_OnCommand(42398, 0) -- Items: paste items/tracks
 
@@ -286,14 +282,14 @@ function se.FourPointEdit()
     local cursorPos_end = r.GetCursorPosition()
 
     if bool_AutoCrossfade then
-        r.GoToMarker(0, dstIdxIn, false) -- go to start of pasted item
+        r.GoToMarker(0, markerIndex_DstIn, false) -- go to start of pasted item
         se.SetCrossfade(xFadeLen)
 
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
         se.SetCrossfade(xFadeLen)
     end
 
-    se.RemoveSourceGates(-1, srcLabelIn, srcLabelOut)    -- remove src gates from newly pasted material
+    se.RemoveSourceGates(-1, markerLabel_SrcIn, markerLabel_SrcOut)    -- remove src gates from newly pasted material
 
     if not bool_AutoCrossfade then
         r.Main_OnCommand(40020, 0) -- Time Selection: Remove
@@ -301,14 +297,14 @@ function se.FourPointEdit()
 
     if bool_MoveDstGateAfterEdit then
         r.SetEditCurPos(cursorPos_end, false, false) -- go to end of pasted item
-        se.SetDstGateIn(dstLabelIn, dstIdxIn)        -- move destination gate in to end of pasted material (assembly line style)
+        se.SetDstGateIn(markerLabel_DstIn, markerIndex_DstIn)        -- move destination gate in to end of pasted material (assembly line style)
     end
 
     if bool_RemoveAllSourceGates then
-        se.RemoveSourceGates(0, srcLabelIn, srcLabelOut)
+        se.RemoveSourceGates(0, markerLabel_SrcIn, markerLabel_SrcOut)
     end
 
-    r.DeleteProjectMarker(0, dstIdxOut, false)
+    r.DeleteProjectMarker(0, markerIndex_Dstout, false)
 
     se.DeselectAllItems()
     r.SetEditCurPos(cursorPos_origin, false, false) -- go to original cursor position

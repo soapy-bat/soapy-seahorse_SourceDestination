@@ -20,23 +20,21 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 ]]
 
--------------------
--- user settings --
--------------------
-
--- true = yes, false = no
-
-local bool_ShowHoverWarnings = true           -- show error message if mouse is hovering over empty space
-local bool_TransportAutoStop = true           -- stop transport automatically after auditioning
-local bool_KeepCursorPosition = true          -- false: script will leave edit cursor at the center of the fade
-local bool_RemoveFade = false                 -- audition without fade
-
 ---------------
 -- variables --
 ---------------
 
 local r = reaper
 local sf = {}
+
+local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
+package.path = modulePath .. "soapy-seahorse_functions/?.lua"
+local st = require("soapy-seahorse_Settings")
+
+local bool_ShowHoverWarnings = st.bool_ShowHoverWarnings
+local bool_TransportAutoStop = st.bool_TransportAutoStop
+local bool_KeepCursorPosition = st.bool_KeepCursorPosition
+local bool_RemoveFade = st.bool_RemoveFade
 
 ------------------------------------------
 -- functions:: major audition functions --
@@ -49,7 +47,7 @@ function sf.AuditionCrossfade()
 
   local auditioningItems1, auditioningItems2 = {}, {}
   local fadeLen1, fadeLenAuto1, fadeDir1, fadeShape1
-  local fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2 
+  local fadeLen2, fadeLenAuto2, fadeDir2, fadeShape2
 
   function AuditionCrossfade_Main()
 
@@ -374,7 +372,7 @@ function sf.GetItemsNearMouse(cursorBias_rx, range_rx)
   local distanceToStart = math.abs(mouseX - itemStart)
   local distanceToEnd = math.abs(itemEnd - mouseX)
 
-  local pri, sec
+  local pri, sec -- temporary indices for item GUID table
 
   if distanceToStart > distanceToEnd then
     -- mouse over 1st item
@@ -543,17 +541,16 @@ function sf.GetItemsOnTrack(flaggedGUID_rx)
 end
 
 -------------------------------------------------------
+
 ---Get (vertically) grouped items
----@param itemGUID_rx itemGUID
 ---@return table tbl_groupedItemsGUID
-function sf.GetGroupedItems(itemGUID_rx)
+function sf.GetGroupedItems(itemGUID)
 -- working with select states is more efficient in this case but causes the items to flicker
 
-  local itemGUID = itemGUID_rx
-  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
-  if not mediaItem then return end
-
   local tbl_groupedItemsGUID = {}
+
+  local mediaItem = r.BR_GetMediaItemByGUID(0, itemGUID)
+  if not mediaItem then return tbl_groupedItemsGUID end
 
   r.Main_OnCommand(40289, 0) -- Deselect all items
 
