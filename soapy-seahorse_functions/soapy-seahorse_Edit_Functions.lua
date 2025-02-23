@@ -68,8 +68,6 @@ local cursorBias_QuickFade
 
 local xFadeShape
 
-se.GetSettings()
-
 ----------------------
 -- three point edit --
 ----------------------
@@ -603,7 +601,7 @@ end
 -- utils --
 -----------
 
-function se.GetSettings()
+function GetSettings()
 
     local tbl_Settings = st.GetSettings()
 
@@ -1453,4 +1451,5 @@ end
 -- required --
 --------------
 
+GetSettings()
 return se

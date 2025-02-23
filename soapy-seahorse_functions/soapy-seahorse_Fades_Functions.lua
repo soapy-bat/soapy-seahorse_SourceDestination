@@ -34,8 +34,6 @@ local st = require("soapy-seahorse_Settings")
 -- settings used in this script:
 local bool_ShowHoverWarnings, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade
 
-sf.GetSettings()
-
 ------------------------------------------
 -- functions:: major audition functions --
 --          audition crossfade          --
@@ -349,7 +347,7 @@ end
 -- functions: information retrieval (get) --
 --------------------------------------------
 
-function sf.GetSettings()
+function GetSettings()
 
   local tbl_Settings = st.GetSettings()
 
@@ -1144,4 +1142,5 @@ end
 -- required --
 --------------
 
+GetSettings()
 return sf

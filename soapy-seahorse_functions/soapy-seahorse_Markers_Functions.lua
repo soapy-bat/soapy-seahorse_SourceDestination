@@ -37,7 +37,7 @@ local st = require("soapy-seahorse_Settings")
 
 local bool_TargetItemUnderMouse, bool_TargetMouseInsteadOfCursor, markerLabel_SrcIn, markerLabel_SrcOut, markerLabel_DstIn, markerLabel_DstOut, markerColor_Src, markerColor_Dst, markerIndex_DstIn, markerIndex_DstOut, srcCol_R, srcCol_G, srcCol_B, dstCol_R, dstCol_G, dstCol_B
 
-function sm.GetSettings()
+function GetSettings()
 
     local tbl_Settings = st.GetSettings()
 
@@ -190,5 +190,5 @@ end
 --------------
 -- required --
 --------------
-
+GetSettings()
 return sm
