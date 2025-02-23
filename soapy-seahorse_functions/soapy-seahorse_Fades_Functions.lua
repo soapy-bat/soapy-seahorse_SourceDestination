@@ -34,16 +34,7 @@ local st = require("soapy-seahorse_Settings")
 -- settings used in this script:
 local bool_ShowHoverWarnings, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade
 
-function sf.GetSettings()
-
-  local tbl_Settings = st.GetSettings()
-
-  bool_ShowHoverWarnings = tbl_Settings.bool_ShowHoverWarnings
-  bool_TransportAutoStop = tbl_Settings.bool_TransportAutoStop
-  bool_KeepCursorPosition = tbl_Settings.bool_KeepCursorPosition
-  bool_RemoveFade = tbl_Settings.bool_RemoveFade
-
-end
+sf.GetSettings()
 
 ------------------------------------------
 -- functions:: major audition functions --
@@ -51,8 +42,6 @@ end
 ------------------------------------------
 
 function sf.AuditionCrossfade()
-
-  sf.GetSettings()
 
   local preRoll, postRoll, cursorBias = 2, 2, 1
 
@@ -147,8 +136,6 @@ end
 ------------------------------------------
 
 function sf.AuditionFade_Crossfade(targetItem)
-
-  sf.GetSettings()
 
   local preRoll, postRoll, cursorBias = 2, 2, 1
 
@@ -265,8 +252,6 @@ end
 
 function sf.AuditionFade_Original(targetItem)
 
-  sf.GetSettings()
-
   local preRoll, postRoll, cursorBias, extensionAmountSeconds = 2, 2, 1, 2
 
   local item1GUID_temp, item2GUID_temp, extensionAmountSeconds_temp, targetItem_temp
@@ -363,6 +348,19 @@ end
 --------------------------------------------
 -- functions: information retrieval (get) --
 --------------------------------------------
+
+function sf.GetSettings()
+
+  local tbl_Settings = st.GetSettings()
+
+  bool_ShowHoverWarnings = tbl_Settings.bool_ShowHoverWarnings
+  bool_TransportAutoStop = tbl_Settings.bool_TransportAutoStop
+  bool_KeepCursorPosition = tbl_Settings.bool_KeepCursorPosition
+  bool_RemoveFade = tbl_Settings.bool_RemoveFade
+
+end
+
+----------------------------------------------
 
 function sf.GetItemsNearMouse(cursorBias_rx, range_rx)
 

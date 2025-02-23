@@ -35,19 +35,28 @@ modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local st = require("soapy-seahorse_Settings")
 
-local tbl_Settings = st.GetSettings()
+local bool_TargetItemUnderMouse, bool_TargetMouseInsteadOfCursor, markerLabel_SrcIn, markerLabel_SrcOut, markerLabel_DstIn, markerLabel_DstOut, markerColor_Src, markerColor_Dst, markerIndex_DstIn, markerIndex_DstOut, srcCol_R, srcCol_G, srcCol_B, dstCol_R, dstCol_G, dstCol_B
 
-local bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_GatesTargetItemUnderMouse)
-local bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_GatesTargetMouseInsteadOfCursor)
+function sm.GetSettings()
 
-local markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
-local markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
-local markerLabel_DstIn = tbl_Settings.markerLabel_DstIn
-local markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
-local markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
-local markerIndex_DstOut = tonumber(tbl_Settings.markerIndex_DstOut)
-local markerColor_Src = r.ColorToNative(255,0,0)
-local markerColor_Dst = r.ColorToNative(22, 141, 195)
+    local tbl_Settings = st.GetSettings()
+
+    bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_GatesTargetItemUnderMouse)
+    bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_GatesTargetMouseInsteadOfCursor)
+
+    markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
+    markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
+    markerLabel_DstIn = tbl_Settings.markerLabel_DstIn
+    markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
+    markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
+    markerIndex_DstOut = tonumber(tbl_Settings.markerIndex_DstOut)
+    markerColor_Src = tbl_Settings.markerColor_Src
+    markerColor_Dst = tbl_Settings.markerColor_Dst
+
+    srcCol_R, srcCol_G, srcCol_B = sm.SplitRGB(markerColor_Src)
+    dstCol_R, dstCol_G, dstCol_B = sm.SplitRGB(markerColor_Dst)
+
+end
 
 ---------------
 -- functions --
@@ -106,7 +115,7 @@ function sm.SetSourceGate(markerType)
 
 
         -- Add a take marker at the cursor position
-        r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, markerColor_Src|0x1000000)
+        r.SetTakeMarker(activeTake, -1, markerLabel, cursorPosInTake, r.ColorToNative(srcCol_R, srcCol_G, srcCol_B)|0x1000000)
 
     end
 
@@ -135,7 +144,7 @@ function sm.SetDstGate(markerType) -- thanks chmaha
 
     local cursorPos = (r.GetPlayState() == 0) and r.GetCursorPosition() or r.GetPlayPosition()
     r.DeleteProjectMarker(0, markerIndex, false)
-    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel, markerIndex, markerColor_Dst | 0x1000000)
+    r.AddProjectMarker2(0, false, cursorPos, 0, markerLabel, markerIndex, r.ColorToNative(dstCol_R, dstCol_G, dstCol_B)| 0x1000000)
 
     if markerType == 1 then r.Undo_EndBlock("Create Destination In", -1)
     elseif markerType == 2 then r.Undo_EndBlock("Create Destination Out", -1)
@@ -155,6 +164,19 @@ function sm.RemoveAllSourceGates()
     r.PreventUIRefresh(-1)
     r.UpdateArrange()
     r.Undo_EndBlock("Remove All Source Gates", -1)
+end
+
+----------------------------------------------------------------------
+
+function sm.SplitRGB(rgbString)
+    -- Split the string by commas
+    local col_R, col_G, col_B = rgbString:match('(%d+),(%d+),(%d+)')
+
+    col_R = tonumber(col_R)
+    col_G = tonumber(col_G)
+    col_B = tonumber(col_B)
+
+    return col_R, col_G, col_B
 end
 
 ----------------------------------------------------------------------

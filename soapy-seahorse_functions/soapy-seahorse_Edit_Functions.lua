@@ -68,52 +68,13 @@ local cursorBias_QuickFade
 
 local xFadeShape
 
-function se.GetSettings()
-
-    local tbl_Settings = st.GetSettings()
-
-    markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
-    markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
-    markerLabel_DstIn =tbl_Settings.markerIndex_DstIn
-    markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
-    markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
-    markerIndex_Dstout = tonumber(tbl_Settings.markerIndex_DstOut)
-
-    bool_ShowHoverWarnings = tonumber(tbl_Settings.bool_ShowHoverWarnings)
-
-    -- three and four point edits
-
-    xFadeLen = tonumber(tbl_Settings.xFadeLen)
-    bool_AutoCrossfade = tonumber(tbl_Settings.bool_AutoCrossfade)
-    bool_MoveDstGateAfterEdit = tonumber(tbl_Settings.bool_MoveDstGateAfterEdit)
-    bool_RemoveAllSourceGates = tonumber(tbl_Settings.bool_RemoveAllSourceGates)
-    bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_EditTargetsItemUnderMouse)
-    bool_KeepLaneSolo = tonumber(tbl_Settings.bool_KeepLaneSolo)
-
-    -- item extender and quick fade
-
-    bool_PreserveEditCursorPosition = tonumber(tbl_Settings.bool_PreserveEditCursorPosition)
-    bool_SelectRightItemAtCleanup = tonumber(tbl_Settings.bool_SelectRightItemAtCleanup)
-    bool_AvoidCollision = tonumber(tbl_Settings.bool_AvoidCollision)
-    bool_PreserveExistingCrossfade = tonumber(tbl_Settings.bool_PreserveExistingCrossfade)
-    bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_EditTargetsMouseInsteadOfCursor)
-
-    extensionAmount = tonumber(tbl_Settings.extensionAmount)
-    collisionPadding = tonumber(tbl_Settings.collisionPadding)
-    cursorBias_Extender = tonumber(tbl_Settings.cursorBias_Extender)
-    cursorBias_QuickFade = tonumber(tbl_Settings.cursorBias_QuickFade)
-
-    xFadeShape = tonumber(tbl_Settings.xFadeShape)
-
-end
+se.GetSettings()
 
 ----------------------
 -- three point edit --
 ----------------------
 
 function se.ThreePointEdit(bool_Ripple)
-
-    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -242,8 +203,6 @@ end
 ---------------------
 
 function se.FourPointEdit()
-
-    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -379,8 +338,6 @@ end
 
 function se.ItemExtender()
 
-  se.GetSettings()
-
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
@@ -488,8 +445,6 @@ end
 ----------------
 
 function se.QuickFade()
-
-    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -647,6 +602,47 @@ end
 -----------
 -- utils --
 -----------
+
+function se.GetSettings()
+
+    local tbl_Settings = st.GetSettings()
+
+    markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
+    markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
+    markerLabel_DstIn =tbl_Settings.markerIndex_DstIn
+    markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
+    markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
+    markerIndex_Dstout = tonumber(tbl_Settings.markerIndex_DstOut)
+
+    bool_ShowHoverWarnings = tonumber(tbl_Settings.bool_ShowHoverWarnings)
+
+    -- three and four point edits
+
+    xFadeLen = tonumber(tbl_Settings.xFadeLen)
+    bool_AutoCrossfade = tonumber(tbl_Settings.bool_AutoCrossfade)
+    bool_MoveDstGateAfterEdit = tonumber(tbl_Settings.bool_MoveDstGateAfterEdit)
+    bool_RemoveAllSourceGates = tonumber(tbl_Settings.bool_RemoveAllSourceGates)
+    bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_EditTargetsItemUnderMouse)
+    bool_KeepLaneSolo = tonumber(tbl_Settings.bool_KeepLaneSolo)
+
+    -- item extender and quick fade
+
+    bool_PreserveEditCursorPosition = tonumber(tbl_Settings.bool_PreserveEditCursorPosition)
+    bool_SelectRightItemAtCleanup = tonumber(tbl_Settings.bool_SelectRightItemAtCleanup)
+    bool_AvoidCollision = tonumber(tbl_Settings.bool_AvoidCollision)
+    bool_PreserveExistingCrossfade = tonumber(tbl_Settings.bool_PreserveExistingCrossfade)
+    bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_EditTargetsMouseInsteadOfCursor)
+
+    extensionAmount = tonumber(tbl_Settings.extensionAmount)
+    collisionPadding = tonumber(tbl_Settings.collisionPadding)
+    cursorBias_Extender = tonumber(tbl_Settings.cursorBias_Extender)
+    cursorBias_QuickFade = tonumber(tbl_Settings.cursorBias_QuickFade)
+
+    xFadeShape = tonumber(tbl_Settings.xFadeShape)
+
+end
+
+-------------------------------------------
 
 function se.GetTimeSelectionStartEnd()
 
