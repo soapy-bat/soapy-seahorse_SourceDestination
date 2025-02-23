@@ -35,44 +35,85 @@ modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local st = require("soapy-seahorse_Settings")
 
-local markerLabel_SrcIn = st.markerLabel_SrcIn
-local markerLabel_SrcOut = st.markerLabel_SrcOut
-local markerLabel_DstIn = st.markerLabel_DstIn
-local markerLabel_DstOut = st.markerLabel_DstOut
-local markerIndex_DstIn = st.markerIndex_DstIn
-local markerIndex_Dstout = st.markerIndex_DstOut
+local markerLabel_SrcIn
+local markerLabel_SrcOut
+local markerLabel_DstIn
+local markerLabel_DstOut
+local markerIndex_DstIn
+local markerIndex_Dstout
 
-local bool_ShowHoverWarnings = st.bool_ShowHoverWarnings
+local bool_ShowHoverWarnings
 
 -- three and four point edits
 
-local xFadeLen = st.xFadeLen
-local bool_AutoCrossfade = st.bool_AutoCrossfade
-local bool_MoveDstGateAfterEdit = st.bool_MoveDstGateAfterEdit
-local bool_RemoveAllSourceGates = st.bool_RemoveAllSourceGates
-local bool_TargetItemUnderMouse = st.bool_EditTargetsItemUnderMouse
-local bool_KeepLaneSolo = st.bool_KeepLaneSolo
+local xFadeLen
+local bool_AutoCrossfade
+local bool_MoveDstGateAfterEdit
+local bool_RemoveAllSourceGates
+local bool_TargetItemUnderMouse
+local bool_KeepLaneSolo
 
 -- item extender and quick fade
 
-local bool_PreserveEditCursorPosition = st.bool_PreserveEditCursorPosition
-local bool_SelectRightItemAtCleanup = st.bool_SelectRightItemAtCleanup
-local bool_AvoidCollision = st.bool_AvoidCollision
-local bool_PreserveExistingCrossfade = st.bool_PreserveExistingCrossfade
-local bool_TargetMouseInsteadOfCursor = st.bool_EditTargetsMouseInsteadOfCursor
+local bool_PreserveEditCursorPosition
+local bool_SelectRightItemAtCleanup
+local bool_AvoidCollision
+local bool_PreserveExistingCrossfade
+local bool_TargetMouseInsteadOfCursor
 
-local extensionAmount = st.extensionAmount
-local collisionPadding = st.collisionPadding
-local cursorBias_Extender = st.cursorBias_Extender
-local cursorBias_QuickFade = st.cursorBias_QuickFade
+local extensionAmount
+local collisionPadding
+local cursorBias_Extender
+local cursorBias_QuickFade
 
-local xFadeShape = st.xFadeShape
+local xFadeShape
+
+function se.GetSettings()
+
+    local tbl_Settings = st.GetSettings()
+
+    markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
+    markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
+    markerLabel_DstIn =tbl_Settings.markerIndex_DstIn
+    markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
+    markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
+    markerIndex_Dstout = tonumber(tbl_Settings.markerIndex_DstOut)
+
+    bool_ShowHoverWarnings = tonumber(tbl_Settings.bool_ShowHoverWarnings)
+
+    -- three and four point edits
+
+    xFadeLen = tonumber(tbl_Settings.xFadeLen)
+    bool_AutoCrossfade = tonumber(tbl_Settings.bool_AutoCrossfade)
+    bool_MoveDstGateAfterEdit = tonumber(tbl_Settings.bool_MoveDstGateAfterEdit)
+    bool_RemoveAllSourceGates = tonumber(tbl_Settings.bool_RemoveAllSourceGates)
+    bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_EditTargetsItemUnderMouse)
+    bool_KeepLaneSolo = tonumber(tbl_Settings.bool_KeepLaneSolo)
+
+    -- item extender and quick fade
+
+    bool_PreserveEditCursorPosition = tonumber(tbl_Settings.bool_PreserveEditCursorPosition)
+    bool_SelectRightItemAtCleanup = tonumber(tbl_Settings.bool_SelectRightItemAtCleanup)
+    bool_AvoidCollision = tonumber(tbl_Settings.bool_AvoidCollision)
+    bool_PreserveExistingCrossfade = tonumber(tbl_Settings.bool_PreserveExistingCrossfade)
+    bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_EditTargetsMouseInsteadOfCursor)
+
+    extensionAmount = tonumber(tbl_Settings.extensionAmount)
+    collisionPadding = tonumber(tbl_Settings.collisionPadding)
+    cursorBias_Extender = tonumber(tbl_Settings.cursorBias_Extender)
+    cursorBias_QuickFade = tonumber(tbl_Settings.cursorBias_QuickFade)
+
+    xFadeShape = tonumber(tbl_Settings.xFadeShape)
+
+end
 
 ----------------------
 -- three point edit --
 ----------------------
 
 function se.ThreePointEdit(bool_Ripple)
+
+    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -201,6 +242,8 @@ end
 ---------------------
 
 function se.FourPointEdit()
+
+    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)
@@ -336,6 +379,8 @@ end
 
 function se.ItemExtender()
 
+  se.GetSettings()
+
   r.Undo_BeginBlock()
   r.PreventUIRefresh(1)
 
@@ -443,6 +488,8 @@ end
 ----------------
 
 function se.QuickFade()
+
+    se.GetSettings()
 
     r.Undo_BeginBlock()
     r.PreventUIRefresh(1)

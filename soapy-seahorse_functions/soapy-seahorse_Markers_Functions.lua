@@ -35,17 +35,19 @@ modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local st = require("soapy-seahorse_Settings")
 
-local bool_TargetItemUnderMouse = st.bool_GatesTargetItemUnderMouse
-local bool_TargetMouseInsteadOfCursor = st.bool_GatesTargetMouseInsteadOfCursor
+local tbl_Settings = st.GetSettings()
 
-local markerLabel_SrcIn = st.markerLabel_SrcIn
-local markerLabel_SrcOut = st.markerLabel_SrcOut
-local markerLabel_DstIn = st.markerLabel_DstIn
-local markerLabel_DstOut = st.markerLabel_DstOut
-local markerIndex_DstIn = st.markerIndex_DstIn
-local markerIndex_DstOut = st.markerIndex_DstOut
-local markerColor_Src = st.markerColor_Src
-local markerColor_Dst = st.markerColor_Dst
+local bool_TargetItemUnderMouse = tonumber(tbl_Settings.bool_GatesTargetItemUnderMouse)
+local bool_TargetMouseInsteadOfCursor = tonumber(tbl_Settings.bool_GatesTargetMouseInsteadOfCursor)
+
+local markerLabel_SrcIn = tbl_Settings.markerLabel_SrcIn
+local markerLabel_SrcOut = tbl_Settings.markerLabel_SrcOut
+local markerLabel_DstIn = tbl_Settings.markerLabel_DstIn
+local markerLabel_DstOut = tbl_Settings.markerLabel_DstOut
+local markerIndex_DstIn = tonumber(tbl_Settings.markerIndex_DstIn)
+local markerIndex_DstOut = tonumber(tbl_Settings.markerIndex_DstOut)
+local markerColor_Src = r.ColorToNative(255,0,0)
+local markerColor_Dst = r.ColorToNative(22, 141, 195)
 
 ---------------
 -- functions --

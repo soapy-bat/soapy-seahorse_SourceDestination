@@ -31,10 +31,19 @@ local modulePath = ({r.get_action_context()})[2]:match("^.+[\\/]")
 package.path = modulePath .. "soapy-seahorse_functions/?.lua"
 local st = require("soapy-seahorse_Settings")
 
-local bool_ShowHoverWarnings = st.bool_ShowHoverWarnings
-local bool_TransportAutoStop = st.bool_TransportAutoStop
-local bool_KeepCursorPosition = st.bool_KeepCursorPosition
-local bool_RemoveFade = st.bool_RemoveFade
+-- settings used in this script:
+local bool_ShowHoverWarnings, bool_TransportAutoStop, bool_KeepCursorPosition, bool_RemoveFade
+
+function sf.GetSettings()
+
+  local tbl_Settings = st.GetSettings()
+
+  bool_ShowHoverWarnings = tbl_Settings.bool_ShowHoverWarnings
+  bool_TransportAutoStop = tbl_Settings.bool_TransportAutoStop
+  bool_KeepCursorPosition = tbl_Settings.bool_KeepCursorPosition
+  bool_RemoveFade = tbl_Settings.bool_RemoveFade
+
+end
 
 ------------------------------------------
 -- functions:: major audition functions --
@@ -42,6 +51,8 @@ local bool_RemoveFade = st.bool_RemoveFade
 ------------------------------------------
 
 function sf.AuditionCrossfade()
+
+  sf.GetSettings()
 
   local preRoll, postRoll, cursorBias = 2, 2, 1
 
@@ -136,6 +147,8 @@ end
 ------------------------------------------
 
 function sf.AuditionFade_Crossfade(targetItem)
+
+  sf.GetSettings()
 
   local preRoll, postRoll, cursorBias = 2, 2, 1
 
@@ -251,6 +264,8 @@ end
 ------------------------------------------
 
 function sf.AuditionFade_Original(targetItem)
+
+  sf.GetSettings()
 
   local preRoll, postRoll, cursorBias, extensionAmountSeconds = 2, 2, 1, 2
 
